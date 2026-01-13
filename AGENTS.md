@@ -1,0 +1,83 @@
+# AGENTS.md — Project Instructions for Codex
+
+## 0) Regla de oro
+Antes de escribir código:
+1) Lee `PRD.md` (root) para entender QUÉ hay que construir.
+2) Lee `PROJECT_STATUS.md` (root) si existe para saber el progreso.
+3) Si algo no está definido en el PRD, asume lo mínimo posible y documenta la suposición en `/docs/assumptions.md`.
+
+## 1) Contexto del proyecto (qué es)
+Aplicación web para:
+- **Administradores (authenticated)**: CRUD de ítems de configuración (catálogo jerárquico desnormalizado).
+- **Usuarios públicos/anónimos (anon)**: seleccionar ítems + introducir metadatos y **generar un CSV** (100% client-side).
+
+## 2) Tech stack (obligatorio)
+- Next.js (App Router)
+- TypeScript
+- Supabase (DB + Auth + RLS)
+- Deploy objetivo: Vercel + Supabase
+
+UI/UX:
+- shadcn/ui
+- react-hook-form + zod
+- lucide-react
+- Toaster para feedback
+
+## 3) Fuentes de verdad
+- `PRD.md` (root): especificación de producto canónica.
+- `PROJECT_STATUS.md` (root): estado y decisiones.
+- Si existe `/supabase/migrations/*`: fuente canónica de schema/policies.
+
+## 4) No negociables (muy importante)
+1) **NO persistencia de informes**:
+   - El CSV se genera en el cliente.
+   - NO crear rutas backend/API para CSV.
+2) **Acceso público**:
+   - La vista principal (generador) es pública.
+   - RLS debe permitir `anon` hacer `SELECT` sobre `configuration_items`.
+3) **DB plana**:
+   - Mantener tabla `configuration_items` desnormalizada para el MVP.
+
+## 5) Notas de implementación (seguir estrictamente)
+### 5.1 CSV generation
+- Implementar en `src/lib/csv-utils.ts`.
+- Preferir funciones puras y testeables.
+- Permitido: construcción nativa de string CSV o helper ligero.
+- Prohibido: server routes para generar el CSV.
+
+### 5.2 Supabase & RLS
+- Tabla: `configuration_items` como en PRD.
+- Activar RLS.
+- Policies:
+  - Public Read: permitir SELECT para `anon`.
+  - Admin Full: permitir ALL para `authenticated`.
+- Mantener policies en SQL/migrations cuando sea posible.
+
+### 5.3 Routing (App Router)
+- `/` => pública (form metadatos + selector ítems + export CSV)
+- `/login` => login admin
+- `/admin/dashboard` => privada (CRUD)
+
+## 6) Flujo de trabajo recomendado
+- Cambios pequeños y verificables.
+- Orden sugerido de implementación:
+  1) Scaffold + shadcn + toaster
+  2) Supabase client + lectura pública
+  3) UI generador (inputs/filtros/selección)
+  4) CSV export (client-only)
+  5) Auth + guard
+  6) Admin CRUD
+  7) RLS + migrations hardening
+- Mantener la app siempre arrancable en local.
+
+## 7) Definition of Done (por tarea)
+Una tarea está hecha solo si:
+- Cumple la parte del PRD que aplique.
+- Hay feedback UX (toasts/errores).
+- NO se han creado rutas server para CSV.
+- El proyecto arranca y es verificable.
+- Docs actualizadas si cambian decisiones o supuestos.
+
+## 8) Comandos
+- Usa los scripts existentes del repo (`package.json`).
+- No inventes comandos: si faltan, añádelos explícitamente y documenta en README.
