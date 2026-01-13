@@ -85,6 +85,7 @@ Build the real public generator interaction (still no CSV export yet).
 ---
 
 ## T004 — Client-side CSV export (no backend)
+**Status**: Done
 **Goal**
 Generate and download CSV fully client-side.
 

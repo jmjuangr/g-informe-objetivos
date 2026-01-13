@@ -21,6 +21,12 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { useConfigurationItems } from "@/hooks/use-configuration-items"
+import {
+  buildCsvHeaders,
+  buildCsvRows,
+  stringifyCsv,
+  triggerCsvDownload,
+} from "@/lib/csv-utils"
 import type { ConfigurationItem } from "@/lib/supabase/types"
 
 const formSchema = z.object({
@@ -33,18 +39,18 @@ const mockItems: ConfigurationItem[] = [
   {
     id: "1",
     created_at: "2024-01-01T00:00:00Z",
-    commission: "Comision A",
-    instruction: "Instruccion 1",
+    commission: "Comisión A",
+    instruction: "Instrucción 1",
     matter: "Materia 1",
     submatter: "Submateria 1",
-    work_line: "Linea 1",
+    work_line: "Línea 1",
     year: 2024,
   },
   {
     id: "2",
     created_at: "2024-01-01T00:00:00Z",
-    commission: "Comision A",
-    instruction: "Instruccion 2",
+    commission: "Comisión A",
+    instruction: "Instrucción 2",
     matter: "Materia 2",
     submatter: "Submateria 2",
     work_line: null,
@@ -53,21 +59,21 @@ const mockItems: ConfigurationItem[] = [
   {
     id: "3",
     created_at: "2024-01-01T00:00:00Z",
-    commission: "Comision B",
-    instruction: "Instruccion 1",
+    commission: "Comisión B",
+    instruction: "Instrucción 1",
     matter: "Materia 3",
     submatter: "Submateria 1",
-    work_line: "Linea 3",
+    work_line: "Línea 3",
     year: 2024,
   },
   {
     id: "4",
     created_at: "2024-01-01T00:00:00Z",
-    commission: "Comision C",
-    instruction: "Instruccion 3",
+    commission: "Comisión C",
+    instruction: "Instrucción 3",
     matter: "Materia 4",
     submatter: "Submateria 2",
-    work_line: "Linea 2",
+    work_line: "Línea 2",
     year: 2022,
   },
 ]
@@ -107,6 +113,10 @@ export default function Home() {
     () => filteredItems.map((item) => item.id),
     [filteredItems],
   )
+  const selectedItems = useMemo(
+    () => items.filter((item) => selectedIds.includes(item.id)),
+    [items, selectedIds],
+  )
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -134,15 +144,32 @@ export default function Home() {
     setSelectedIds([])
   }
 
-  const onSubmit = form.handleSubmit((values) => {
-    if (selectedIds.length === 0) {
-      toast.error("Selecciona al menos un item antes de exportar.")
-      return
-    }
-    toast.success("CSV listo para generar cuando conectes Supabase.", {
-      description: `${values.entity} • ${values.manager} • ${values.deadline}`,
-    })
-  })
+  const onSubmit = form.handleSubmit(
+    (values) => {
+      if (selectedItems.length === 0) {
+        toast.error("Selecciona al menos un item antes de exportar.")
+        return
+      }
+
+      try {
+        const headers = buildCsvHeaders()
+        const rows = buildCsvRows(values, selectedItems)
+        const csv = stringifyCsv([headers, ...rows])
+        const stamp = new Date().toISOString().slice(0, 10)
+        const filename = `informe-${stamp}.csv`
+
+        triggerCsvDownload(csv, filename)
+        toast.success("CSV generado correctamente.", {
+          description: `${values.entity} • ${values.manager} • ${values.deadline}`,
+        })
+      } catch (error) {
+        toast.error("No se pudo generar el CSV.")
+      }
+    },
+    () => {
+      toast.error("Completa los datos de cabecera para exportar.")
+    },
+  )
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f8f4ef_0%,_#f1f0ed_40%,_#e7e4df_100%)] text-zinc-900">
@@ -220,7 +247,7 @@ export default function Home() {
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Comision</Label>
+                    <Label>Comisión</Label>
                     <Select value={commissionFilter} onValueChange={setCommissionFilter}>
                       <SelectTrigger>
                         <SelectValue placeholder="Todas" />
@@ -236,7 +263,7 @@ export default function Home() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Anno</Label>
+                    <Label>Año</Label>
                     <Select value={yearFilter} onValueChange={setYearFilter}>
                       <SelectTrigger>
                         <SelectValue placeholder="Todos" />
@@ -304,8 +331,8 @@ export default function Home() {
                           {item.matter} / {item.submatter}
                         </div>
                         <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
-                          <span>Anno {item.year}</span>
-                          {item.work_line && <span>Linea: {item.work_line}</span>}
+                          <span>Año {item.year}</span>
+                          {item.work_line && <span>Línea: {item.work_line}</span>}
                         </div>
                       </div>
                     </label>
