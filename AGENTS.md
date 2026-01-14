@@ -37,6 +37,10 @@ UI/UX:
    - RLS debe permitir `anon` hacer `SELECT` sobre `configuration_items`.
 3) **DB plana**:
    - Mantener tabla `configuration_items` desnormalizada para el MVP.
+4) **Año fijo**:
+   - El año es fijo (2026) y se guarda en la tabla `configuration_items`.
+5) **Plazo por item**:
+   - El plazo se define por cada item seleccionado (no se guarda en la tabla).
 
 ## 5) Notas de implementación (seguir estrictamente)
 ### 5.1 CSV generation
@@ -44,6 +48,8 @@ UI/UX:
 - Preferir funciones puras y testeables.
 - Permitido: construcción nativa de string CSV o helper ligero.
 - Prohibido: server routes para generar el CSV.
+ - Formato: 1 fila por item_objective con columnas:
+   Entidad, Gestor, Comision, Instruccion, Materia, Submateria, Linea de Trabajo, Objetivo, Objetivo 2, Estado, Ano, Plazo.
 
 ### 5.2 Supabase & RLS
 - Tabla: `configuration_items` como en PRD.

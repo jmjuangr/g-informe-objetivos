@@ -25,7 +25,7 @@ El sistema permite a los **Administradores** configurar un catálogo de ítems j
 ### 3.1. Panel de Administración (Protected)
 - **Tabla de Gestión:** Interfaz (shadcn/ui Data Table) para visualizar todos los ítems.
 - **Formulario de Ítem:**
-  - Campos: Comisión, Instrucción, Materia, Submateria, Línea de Trabajo, Año.
+  - Campos: Comisión, Instrucción, Materia, Submateria, Línea de Trabajo, Objetivo, Objetivo 2, Estado, Año.
   - Validaciones: Zod (campos requeridos).
 
 ### 3.2. Generador Público de Informes
@@ -34,26 +34,33 @@ El sistema permite a los **Administradores** configurar un catálogo de ítems j
   - Gestor (Texto).
 
 - **Selector de Ítems:**
-  -Los items configurados se seleccionan en cascada. Primero se seleccionan 
+  - Seleccion en cascada: primero se selecciona instruction, de ahi derivan las work_line y de las work_line derivan los item_objective.
+  - La tabla de items disponibles tiene boton "Añadir"; al añadir un item desaparece de la lista para evitar duplicados.
+  - Debajo se muestra la tabla de items seleccionados con boton "Quitar".
+  - Cada item_objective seleccionado debe tener un Plazo (Primer trimestre, Segundo trimestre, Tercer trimestre, Cuarto trimestre, Ano completo).
+  - Los item_objective se van acumulando en el informe, para luego exportarse.
 - **Motor de Exportación:**
   - Generación de CSV en el cliente (Client-side).
-  - Formato: Columnas de metadatos + Columnas de ítems seleccionados.
+  - Formato: 1 fila por item_objective con las columnas:
+    Entidad, Gestor, Comision, Instruccion, Materia, Submateria, Linea de Trabajo, Objetivo, Objetivo 2, Estado, Ano, Plazo
 
 ## 4. Database Schema (Supabase)
 
 ### Table: `configuration_items`
-Tabla maestra desnormalizada (sin relaciones estrictas para facilitar MVP).
 
-| Column Name | Type | Constraint | Description |
-|---|---|---|---|
-| `id` | uuid | PK, default gen | Identificador único |
-| `created_at` | timestamptz | default now() | Fecha de creación |
-| `commission` | text | NOT NULL | Nivel 1: Comisión |
-| `instruction` | text | NOT NULL | Nivel 2: Instrucción |
-| `matter` | text | NOT NULL | Nivel 3: Materia |
-| `submatter` | text | NOT NULL | Nivel 4: Submateria |
-| `work_line` | text | NULL | Línea de trabajo asociada |
-| `year` | integer | NOT NULL | Año de vigencia |
+Columnas tabla maestra:
+
+id,created_at,instruction_id,item_objective,commission,instruction,matter,submatter,work_line_id,work_line,work_line_unified,item_id,item_objective_2,status,year
+
+Relaciones
+
+1 instruction tiene n work_lines 
+1 work_line tiene n item_objectives
+
+Notas:
+- El plazo no se almacena en la tabla; se selecciona al exportar.
+
+Ver archivo configuration_items_rows.csv en raiz del proyecto
 
 **Row Level Security (RLS) Policies:**
 1. **Enable RLS.**

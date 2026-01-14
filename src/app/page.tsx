@@ -4,12 +4,12 @@ import { useMemo, useState } from "react"
 import { Download, Filter } from "lucide-react"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm, Controller } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { toast } from "sonner"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -32,13 +32,26 @@ import type { ConfigurationItem } from "@/lib/supabase/types"
 const formSchema = z.object({
   entity: z.string().min(2, "Entidad requerida"),
   manager: z.string().min(2, "Gestor requerido"),
-  deadline: z.string().min(1, "Plazo requerido"),
 })
+
+const deadlineOptions = [
+  "Primer trimestre",
+  "Segundo trimestre",
+  "Tercer trimestre",
+  "Cuarto trimestre",
+  "Año completo",
+] as const
+
+const NO_INSTRUCTION = "sin-instruction"
+const NO_WORK_LINE = "sin-work-line"
 
 const mockItems: ConfigurationItem[] = [
   {
     id: "1",
     created_at: "2024-01-01T00:00:00Z",
+    instruction_id: "INS-01",
+    work_line_id: "WL-01",
+    item_id: "OBJ-001",
     commission: "Comisión A",
     instruction: "Instrucción 1",
     matter: "Materia 1",
@@ -47,10 +60,14 @@ const mockItems: ConfigurationItem[] = [
     item_objective: "Objetivo principal 1",
     item_objective_2: "Objetivo secundario A",
     status: "Activo",
+    year: 2026,
   },
   {
     id: "2",
     created_at: "2024-01-01T00:00:00Z",
+    instruction_id: "INS-01",
+    work_line_id: "WL-02",
+    item_id: "OBJ-002",
     commission: "Comisión A",
     instruction: "Instrucción 2",
     matter: "Materia 2",
@@ -59,10 +76,14 @@ const mockItems: ConfigurationItem[] = [
     item_objective: "Objetivo principal 2",
     item_objective_2: null,
     status: "En revisión",
+    year: 2026,
   },
   {
     id: "3",
     created_at: "2024-01-01T00:00:00Z",
+    instruction_id: "INS-02",
+    work_line_id: "WL-03",
+    item_id: "OBJ-003",
     commission: "Comisión B",
     instruction: "Instrucción 1",
     matter: "Materia 3",
@@ -71,10 +92,14 @@ const mockItems: ConfigurationItem[] = [
     item_objective: "Objetivo principal 3",
     item_objective_2: "Objetivo secundario C",
     status: null,
+    year: 2026,
   },
   {
     id: "4",
     created_at: "2024-01-01T00:00:00Z",
+    instruction_id: "INS-03",
+    work_line_id: "WL-04",
+    item_id: "OBJ-004",
     commission: "Comisión C",
     instruction: "Instrucción 3",
     matter: "Materia 4",
@@ -83,11 +108,11 @@ const mockItems: ConfigurationItem[] = [
     item_objective: "Objetivo principal 4",
     item_objective_2: null,
     status: "Activo",
+    year: 2026,
   },
 ]
 
 export default function Home() {
-  const emptyStatusValue = "sin-estado"
   const hasSupabaseEnv =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
@@ -96,53 +121,69 @@ export default function Home() {
   })
   const items = hasSupabaseEnv ? data : mockItems
 
-  const [commissionFilter, setCommissionFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [selectedInstructionId, setSelectedInstructionId] = useState("")
+  const [selectedWorkLineId, setSelectedWorkLineId] = useState("")
+  const [selectedItems, setSelectedItems] = useState<Record<string, string>>({})
 
-  const commissions = useMemo(
-    () => Array.from(new Set(items.map((item) => item.commission))).sort(),
-    [items],
-  )
-  const statuses = useMemo(() => {
-    const statusSet = new Set<string>()
-    let hasEmpty = false
-
+  const instructionOptions = useMemo(() => {
+    const map = new Map<string, string>()
     items.forEach((item) => {
-      if (item.status && item.status.trim() !== "") {
-        statusSet.add(item.status)
-      } else {
-        hasEmpty = true
+      const id = item.instruction_id ?? NO_INSTRUCTION
+      const label = item.instruction || "Sin instruccion"
+      if (!map.has(id)) {
+        map.set(id, label)
       }
     })
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [items])
 
-    const values = Array.from(statusSet).sort()
-    if (hasEmpty) {
-      values.push(emptyStatusValue)
-    }
-    return values
-  }, [items, emptyStatusValue])
-
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      const matchesCommission =
-        commissionFilter === "all" || item.commission === commissionFilter
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === emptyStatusValue
-          ? !item.status
-          : item.status === statusFilter)
-      return matchesCommission && matchesStatus
+  const workLineOptions = useMemo(() => {
+    if (!selectedInstructionId) return []
+    const map = new Map<string, string>()
+    items.forEach((item) => {
+      const instructionId = item.instruction_id ?? NO_INSTRUCTION
+      if (instructionId !== selectedInstructionId) return
+      const id = item.work_line_id ?? NO_WORK_LINE
+      const label = item.work_line || "Sin linea"
+      if (!map.has(id)) {
+        map.set(id, label)
+      }
     })
-  }, [items, commissionFilter, statusFilter, emptyStatusValue])
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [items, selectedInstructionId])
 
-  const filteredIds = useMemo(
-    () => filteredItems.map((item) => item.id),
-    [filteredItems],
+  const cascadeItems = useMemo(() => {
+    if (!selectedInstructionId || !selectedWorkLineId) return []
+    return items.filter((item) => {
+      const instructionId = item.instruction_id ?? NO_INSTRUCTION
+      const workLineId = item.work_line_id ?? NO_WORK_LINE
+      return (
+        instructionId === selectedInstructionId &&
+        workLineId === selectedWorkLineId
+      )
+    })
+  }, [items, selectedInstructionId, selectedWorkLineId])
+
+  const selectedIds = useMemo(
+    () => Object.keys(selectedItems),
+    [selectedItems],
   )
-  const selectedItems = useMemo(
-    () => items.filter((item) => selectedIds.includes(item.id)),
-    [items, selectedIds],
+  const availableItems = useMemo(() => {
+    return cascadeItems.filter((item) => !selectedIds.includes(item.id))
+  }, [cascadeItems, selectedIds])
+  const selectedRows = useMemo(
+    () =>
+      items
+        .filter((item) => selectedIds.includes(item.id))
+        .map((item) => ({
+          item,
+          deadline: selectedItems[item.id] ?? "",
+        })),
+    [items, selectedIds, selectedItems],
   )
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -150,44 +191,58 @@ export default function Home() {
     defaultValues: {
       entity: "",
       manager: "",
-      deadline: "",
     },
   })
 
   const toggleSelection = (id: string, checked: boolean) => {
-    setSelectedIds((prev) => {
+    setSelectedItems((prev) => {
       if (checked) {
-        return Array.from(new Set([...prev, id]))
+        if (prev[id]) return prev
+        return { ...prev, [id]: "" }
       }
-      return prev.filter((itemId) => itemId !== id)
+      const { [id]: _, ...rest } = prev
+      return rest
     })
   }
 
   const handleSelectAll = () => {
-    setSelectedIds((prev) => Array.from(new Set([...prev, ...filteredIds])))
+    setSelectedItems((prev) => {
+      const next = { ...prev }
+      availableItems.forEach((item) => {
+        if (!next[item.id]) {
+          next[item.id] = ""
+        }
+      })
+      return next
+    })
   }
 
   const handleClearSelection = () => {
-    setSelectedIds([])
+    setSelectedItems({})
   }
 
   const onSubmit = form.handleSubmit(
     (values) => {
-      if (selectedItems.length === 0) {
+      if (selectedRows.length === 0) {
         toast.error("Selecciona al menos un item antes de exportar.")
+        return
+      }
+      const missingDeadline = selectedRows.some(({ deadline }) => !deadline)
+      if (missingDeadline) {
+        toast.error("Selecciona el plazo para cada item.")
         return
       }
 
       try {
         const headers = buildCsvHeaders()
-        const rows = buildCsvRows(values, selectedItems)
+        const rows = buildCsvRows(values, selectedRows)
         const csv = stringifyCsv([headers, ...rows])
         const stamp = new Date().toISOString().slice(0, 10)
         const filename = `informe-${stamp}.csv`
 
         triggerCsvDownload(csv, filename)
         toast.success("CSV generado correctamente.", {
-          description: `${values.entity} • ${values.manager} • ${values.deadline}`,
+          description: `${values.entity} • ${values.manager}`,
         })
       } catch (error) {
         toast.error("No se pudo generar el CSV.")
@@ -205,6 +260,9 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <Badge className="bg-zinc-900 text-zinc-50">Publico</Badge>
             <Badge variant="outline">CSV client-side</Badge>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/login">Acceso admin</Link>
+            </Button>
           </div>
           <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
             Generador de informes estandarizados
@@ -245,141 +303,208 @@ export default function Home() {
                     {...form.register("manager")}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Plazo estimado</Label>
-                  <Controller
-                    control={form.control}
-                    name="deadline"
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un plazo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="30 dias">30 dias</SelectItem>
-                          <SelectItem value="60 dias">60 dias</SelectItem>
-                          <SelectItem value="90 dias">90 dias</SelectItem>
-                          <SelectItem value="120 dias">120 dias</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-
                 <Separator />
 
-                <div className="flex items-center gap-2 text-sm font-medium text-zinc-600">
-                  <Filter className="size-4" />
-                  Filtros rapidos
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Comisión</Label>
-                    <Select value={commissionFilter} onValueChange={setCommissionFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Todas" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas</SelectItem>
-                        {commissions.map((commission) => (
-                          <SelectItem key={commission} value={commission}>
-                            {commission}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-zinc-600">
+                    <Filter className="size-4" />
+                    Seleccion de Instruccion y Linea de trabajo
                   </div>
-                  <div className="space-y-2">
-                    <Label>Estado</Label>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Todos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        {statuses.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {status === emptyStatusValue
-                              ? "Sin estado"
-                              : status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Instruccion</Label>
+                      <Select
+                        value={selectedInstructionId}
+                        onValueChange={(value) => {
+                          setSelectedInstructionId(value)
+                          setSelectedWorkLineId("")
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {instructionOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Linea de trabajo</Label>
+                      <Select
+                        value={selectedWorkLineId}
+                        onValueChange={setSelectedWorkLineId}
+                        disabled={!selectedInstructionId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {workLineOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               </form>
             </CardContent>
           </Card>
 
-          <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
-            <CardHeader className="space-y-2">
-              <CardTitle>Items configurados</CardTitle>
-              <CardDescription>
-                {loading
-                  ? "Cargando catalogo..."
-                  : `${filteredItems.length} items filtrados`}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {error && (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  Error al cargar items: {error.message}
-                </div>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" variant="outline" onClick={handleSelectAll}>
-                  Seleccionar visibles
-                </Button>
-                <Button type="button" variant="ghost" onClick={handleClearSelection}>
-                  Limpiar seleccion
-                </Button>
-                <Badge variant="outline">
-                  {selectedIds.length} seleccionados
-                </Badge>
-              </div>
-              <div className="grid gap-3">
-                {filteredItems.map((item) => {
-                  const checked = selectedIds.includes(item.id)
-                  return (
-                    <label
-                      key={item.id}
-                      className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200/80 bg-white px-4 py-3 text-sm transition hover:border-zinc-300"
-                    >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(value) =>
-                          toggleSelection(item.id, Boolean(value))
-                        }
-                      />
-                      <div className="flex-1 space-y-1">
-                        <div className="text-sm font-medium text-zinc-900">
-                          {item.commission} · {item.instruction}
-                        </div>
-                        <div className="text-xs text-zinc-500">
-                          {item.matter} / {item.submatter}
-                        </div>
-                        {item.item_objective && (
-                          <div className="text-xs text-zinc-600">
-                            {item.item_objective}
-                          </div>
-                        )}
-                        <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
-                          {item.status && <span>Estado: {item.status}</span>}
-                          {item.work_line && <span>Línea: {item.work_line}</span>}
-                        </div>
-                      </div>
-                    </label>
-                  )
-                })}
-                {!loading && filteredItems.length === 0 && (
-                  <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-500">
-                    No hay items con esos filtros.
+          <div className="space-y-6">
+            <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
+              <CardHeader className="space-y-2">
+                <CardTitle>Items disponibles</CardTitle>
+                <CardDescription>
+                  {loading
+                    ? "Cargando catalogo..."
+                    : `${availableItems.length} disponibles`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {error && (
+                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    Error al cargar items: {error.message}
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" variant="outline" onClick={handleSelectAll}>
+                    Agregar visibles
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={handleClearSelection}>
+                    Limpiar seleccion
+                  </Button>
+                  <Badge variant="outline">{selectedIds.length} seleccionados</Badge>
+                </div>
+                <div className="rounded-lg border border-zinc-200/80">
+                  <div className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
+                    <span>Instruccion</span>
+                    <span>Linea de trabajo</span>
+                    <span>Objetivo de evaluacion</span>
+                    <span>ID Objetivo</span>
+                    <span>Accion</span>
+                  </div>
+                  {availableItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
+                    >
+                      <div>
+                        <div className="font-medium text-zinc-900">
+                          {item.instruction}
+                        </div>
+                        <div className="text-xs text-zinc-500">
+                          {item.matter} · {item.submatter}
+                        </div>
+                      </div>
+                      <div className="text-xs text-zinc-600">
+                        {item.work_line ?? "Sin linea"}
+                      </div>
+                      <div className="text-xs text-zinc-600">
+                        {item.item_objective ?? "Sin objetivo"}
+                      </div>
+                      <div className="text-xs text-zinc-500">
+                        {item.item_id ?? "Sin ID"}
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => toggleSelection(item.id, true)}
+                      >
+                        Añadir
+                      </Button>
+                    </div>
+                  ))}
+                  {!loading && availableItems.length === 0 && (
+                    <div className="px-4 py-6 text-sm text-zinc-500">
+                      {!selectedInstructionId || !selectedWorkLineId
+                        ? "Selecciona instruccion y linea para ver items."
+                        : "No hay items disponibles para esta vista."}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
+              <CardHeader className="space-y-2">
+                <CardTitle>Items seleccionados</CardTitle>
+                <CardDescription>
+                  {selectedRows.length} items en el informe
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {selectedRows.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-500">
+                    Aun no hay items seleccionados.
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-zinc-200/80">
+                    <div className="grid grid-cols-[1.6fr_1.2fr_1fr_0.5fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
+                      <span>Item</span>
+                      <span>Plazo</span>
+                      <span>Estado</span>
+                      <span>Año</span>
+                      <span>Accion</span>
+                    </div>
+                    {selectedRows.map(({ item, deadline }) => (
+                      <div
+                        key={item.id}
+                        className="grid grid-cols-[1.6fr_1.2fr_1fr_0.5fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
+                      >
+                        <div>
+                          <div className="font-medium text-zinc-900">
+                            {item.item_objective ?? "Sin objetivo"}
+                          </div>
+                          <div className="text-xs text-zinc-500">
+                            {item.instruction} · {item.work_line ?? "Sin linea"}
+                          </div>
+                        </div>
+                        <Select
+                          value={deadline}
+                          onValueChange={(value) =>
+                            setSelectedItems((prev) => ({
+                              ...prev,
+                              [item.id]: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Plazo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {deadlineOptions.map((option) => (
+                              <SelectItem key={option} value={option}>
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="text-xs text-zinc-600">
+                          {item.status ?? "Sin estado"}
+                        </div>
+                        <div className="text-xs text-zinc-600">{item.year}</div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => toggleSelection(item.id, false)}
+                        >
+                          Quitar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <Card className="border-zinc-200/80 bg-zinc-900 text-zinc-50 shadow-lg">

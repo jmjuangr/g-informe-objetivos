@@ -3,10 +3,14 @@ import type { ConfigurationItem } from "@/lib/supabase/types"
 export type CsvMetadata = {
   entity: string
   manager: string
+}
+
+export type CsvItemSelection = {
+  item: ConfigurationItem
   deadline: string
 }
 
-const METADATA_HEADERS = ["Entidad", "Gestor", "Plazo"]
+const METADATA_HEADERS = ["Entidad", "Gestor"]
 const ITEM_HEADERS = [
   "Comisión",
   "Instrucción",
@@ -16,18 +20,19 @@ const ITEM_HEADERS = [
   "Objetivo",
   "Objetivo 2",
   "Estado",
+  "Año",
+  "Plazo",
 ]
 
 export const buildCsvHeaders = () => [...METADATA_HEADERS, ...ITEM_HEADERS]
 
 export const buildCsvRows = (
   metadata: CsvMetadata,
-  items: ConfigurationItem[],
+  selections: CsvItemSelection[],
 ) => {
-  return items.map((item) => [
+  return selections.map(({ item, deadline }) => [
     metadata.entity,
     metadata.manager,
-    metadata.deadline,
     item.commission,
     item.instruction,
     item.matter,
@@ -36,6 +41,8 @@ export const buildCsvRows = (
     item.item_objective ?? "",
     item.item_objective_2 ?? "",
     item.status ?? "",
+    String(item.year),
+    deadline,
   ])
 }
 

@@ -6,7 +6,7 @@ Web app (Next.js + Supabase) for:
 - Public (anonymous): select items + fill metadata and export client-side CSV
 
 ## Current phase
-- Public generator UI + client-side CSV export complete; Supabase client prepared.
+- Public generator UI updated for cascaded/filtered selection and per-item deadline; Supabase client prepared.
 
 ## Progress checklist (TASKS.md)
 - [x] T001 — Bootstrap project (Next.js + TS + Tailwind + shadcn/ui)
@@ -24,24 +24,18 @@ Web app (Next.js + Supabase) for:
 - Flat table `configuration_items` for MVP.
 
 ## Recent updates
-- CSV client-side export implemented and working.
-- UI labels updated to Spanish accents (Año, Comisión, Línea, Instrucción).
-- Supabase `configuration_items` recreated to match `objetivos_2026.csv` structure; RLS + policies applied; data imported.
-- `.env.local` created with Supabase URL + anon key.
+- CSV client-side export aligned to 1-row-per-item output with per-item deadline.
+- Public UI now supports cascaded selection (instruction -> work_line -> item_objective) plus filter mode.
+- Selected items move to a separate table with removal and per-item deadline selection.
 
 ## Next steps
-- Adapt project types/UI/CSV to the new Supabase schema:
-  - Update `src/lib/supabase/types.ts`.
-  - Update `src/lib/supabase/queries.ts` if needed.
-  - Update `src/app/page.tsx` filters/list/selection fields.
-  - Update `src/lib/csv-utils.ts` columns.
-- Confirm final CSV output columns based on new schema.
-- Update `/docs/assumptions.md` with final CSV column decisions.
+- Implement admin auth flow and protected routing.
+- Build admin CRUD for `configuration_items` with the updated schema (including year).
+- Add migrations/SQL for year column and RLS policies.
 
 ## Open questions / assumptions
 > Add any unknowns here. If Codex must assume something, it should write it to `/docs/assumptions.md`.
 
-- CSV exact columns/order (if not specified further in PRD)
 - Whether authenticated = admin (or if we need a separate admin role/claim)
 
 ## Environment setup notes
