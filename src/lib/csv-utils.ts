@@ -12,8 +12,10 @@ const ITEM_HEADERS = [
   "Instrucción",
   "Materia",
   "Submateria",
-  "Línea de trabajo",
-  "Año",
+  "Línea de Trabajo",
+  "Objetivo",
+  "Objetivo 2",
+  "Estado",
 ]
 
 export const buildCsvHeaders = () => [...METADATA_HEADERS, ...ITEM_HEADERS]
@@ -31,7 +33,9 @@ export const buildCsvRows = (
     item.matter,
     item.submatter,
     item.work_line ?? "",
-    String(item.year),
+    item.item_objective ?? "",
+    item.item_objective_2 ?? "",
+    item.status ?? "",
   ])
 }
 

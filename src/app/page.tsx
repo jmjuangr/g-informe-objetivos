@@ -44,7 +44,9 @@ const mockItems: ConfigurationItem[] = [
     matter: "Materia 1",
     submatter: "Submateria 1",
     work_line: "Línea 1",
-    year: 2024,
+    item_objective: "Objetivo principal 1",
+    item_objective_2: "Objetivo secundario A",
+    status: "Activo",
   },
   {
     id: "2",
@@ -54,7 +56,9 @@ const mockItems: ConfigurationItem[] = [
     matter: "Materia 2",
     submatter: "Submateria 2",
     work_line: null,
-    year: 2023,
+    item_objective: "Objetivo principal 2",
+    item_objective_2: null,
+    status: "En revisión",
   },
   {
     id: "3",
@@ -64,7 +68,9 @@ const mockItems: ConfigurationItem[] = [
     matter: "Materia 3",
     submatter: "Submateria 1",
     work_line: "Línea 3",
-    year: 2024,
+    item_objective: "Objetivo principal 3",
+    item_objective_2: "Objetivo secundario C",
+    status: null,
   },
   {
     id: "4",
@@ -74,11 +80,14 @@ const mockItems: ConfigurationItem[] = [
     matter: "Materia 4",
     submatter: "Submateria 2",
     work_line: "Línea 2",
-    year: 2022,
+    item_objective: "Objetivo principal 4",
+    item_objective_2: null,
+    status: "Activo",
   },
 ]
 
 export default function Home() {
+  const emptyStatusValue = "sin-estado"
   const hasSupabaseEnv =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
@@ -88,26 +97,44 @@ export default function Home() {
   const items = hasSupabaseEnv ? data : mockItems
 
   const [commissionFilter, setCommissionFilter] = useState("all")
-  const [yearFilter, setYearFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("all")
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   const commissions = useMemo(
     () => Array.from(new Set(items.map((item) => item.commission))).sort(),
     [items],
   )
-  const years = useMemo(
-    () => Array.from(new Set(items.map((item) => item.year))).sort((a, b) => b - a),
-    [items],
-  )
+  const statuses = useMemo(() => {
+    const statusSet = new Set<string>()
+    let hasEmpty = false
+
+    items.forEach((item) => {
+      if (item.status && item.status.trim() !== "") {
+        statusSet.add(item.status)
+      } else {
+        hasEmpty = true
+      }
+    })
+
+    const values = Array.from(statusSet).sort()
+    if (hasEmpty) {
+      values.push(emptyStatusValue)
+    }
+    return values
+  }, [items, emptyStatusValue])
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       const matchesCommission =
         commissionFilter === "all" || item.commission === commissionFilter
-      const matchesYear = yearFilter === "all" || String(item.year) === yearFilter
-      return matchesCommission && matchesYear
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === emptyStatusValue
+          ? !item.status
+          : item.status === statusFilter)
+      return matchesCommission && matchesStatus
     })
-  }, [items, commissionFilter, yearFilter])
+  }, [items, commissionFilter, statusFilter, emptyStatusValue])
 
   const filteredIds = useMemo(
     () => filteredItems.map((item) => item.id),
@@ -263,16 +290,18 @@ export default function Home() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Año</Label>
-                    <Select value={yearFilter} onValueChange={setYearFilter}>
+                    <Label>Estado</Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
                       <SelectTrigger>
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todos</SelectItem>
-                        {years.map((year) => (
-                          <SelectItem key={year} value={String(year)}>
-                            {year}
+                        {statuses.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status === emptyStatusValue
+                              ? "Sin estado"
+                              : status}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -330,8 +359,13 @@ export default function Home() {
                         <div className="text-xs text-zinc-500">
                           {item.matter} / {item.submatter}
                         </div>
+                        {item.item_objective && (
+                          <div className="text-xs text-zinc-600">
+                            {item.item_objective}
+                          </div>
+                        )}
                         <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
-                          <span>Año {item.year}</span>
+                          {item.status && <span>Estado: {item.status}</span>}
                           {item.work_line && <span>Línea: {item.work_line}</span>}
                         </div>
                       </div>

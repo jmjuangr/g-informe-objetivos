@@ -32,10 +32,9 @@ El sistema permite a los **Administradores** configurar un catálogo de ítems j
 - **Entrada de Datos de Cabecera:**
   - Entidad (Texto).
   - Gestor (Texto).
-  - Plazo Estimado (Selector/Dropdown).
+
 - **Selector de Ítems:**
-  - Interfaz de selección múltiple (Checkbox) de los ítems configurados por el admin.
-  - Filtros simples para encontrar ítems (por Comisión o Año).
+  -Los items configurados se seleccionan en cascada. Primero se seleccionan 
 - **Motor de Exportación:**
   - Generación de CSV en el cliente (Client-side).
   - Formato: Columnas de metadatos + Columnas de ítems seleccionados.
