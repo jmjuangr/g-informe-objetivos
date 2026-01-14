@@ -33,7 +33,7 @@ const formSchema = z.object({
   item_objective: z.string().min(1, "Objetivo requerido"),
   item_objective_2: z.string().optional(),
   status: z.string().optional(),
-  year: z.coerce.number().int().min(2000, "Ano requerido"),
+  year: z.number().int().min(2000, "Año requerido"),
 })
 
 const defaultValues: z.infer<typeof formSchema> = {
@@ -301,8 +301,11 @@ export default function AdminDashboardPage() {
                 <Input {...form.register("status")} />
               </div>
               <div className="space-y-2">
-                <Label>Ano</Label>
-                <Input type="number" {...form.register("year")} />
+                <Label>Año</Label>
+                <Input
+                  type="number"
+                  {...form.register("year", { valueAsNumber: true })}
+                />
               </div>
               <div className="md:col-span-2 flex flex-wrap gap-2">
                 <Button type="submit" disabled={saving}>
