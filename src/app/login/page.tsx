@@ -27,7 +27,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const hasSupabaseEnv =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-    Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

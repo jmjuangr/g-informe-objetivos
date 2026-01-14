@@ -110,7 +110,7 @@ export default function AdminDashboardPage() {
       try {
         if (
           !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-          !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+          !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
         ) {
           if (!localStorage.getItem("mock-admin")) {
             router.replace("/login")
@@ -144,7 +144,7 @@ export default function AdminDashboardPage() {
     try {
       if (
         !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
       ) {
         localStorage.removeItem("mock-admin")
         router.replace("/login")

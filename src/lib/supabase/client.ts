@@ -5,9 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 let browserClient: ReturnType<typeof createClient> | null = null
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
 
 if (!supabaseUrl) {
   throw new Error("NEXT_PUBLIC_SUPABASE_URL is required to initialize Supabase")
@@ -15,7 +13,7 @@ if (!supabaseUrl) {
 
 if (!supabaseAnonKey) {
   throw new Error(
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY is required to initialize Supabase",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY is required to initialize Supabase",
   )
 }
 

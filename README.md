@@ -6,7 +6,7 @@ Create a `.env.local` file in the repo root and set:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=
 ```
 
 You can copy `.env.example` as a starting point.

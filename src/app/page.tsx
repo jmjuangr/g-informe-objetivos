@@ -115,7 +115,7 @@ const mockItems: ConfigurationItem[] = [
 export default function Home() {
   const hasSupabaseEnv =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-    Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY)
   const { data, error, loading } = useConfigurationItems({
     enabled: hasSupabaseEnv,
   })
