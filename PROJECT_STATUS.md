@@ -15,7 +15,7 @@ Web app (Next.js + Supabase) for:
 - [x] T004 — Client-side CSV export (no backend)
 - [x] T005 — Admin auth (Supabase Auth) + protected routing
 - [x] T006 — Admin dashboard CRUD for `configuration_items`
-- [ ] T007 — Supabase schema + RLS policies (migrations)
+- [x] T007 — Supabase schema + RLS policies (migrations)
 - [ ] T008 — Hardening + UX polish
 
 ## Decisions
@@ -28,6 +28,7 @@ Web app (Next.js + Supabase) for:
 - Public UI now supports cascaded selection (instruction -> work_line -> item_objective) plus filter mode.
 - Selected items move to a separate table with removal and per-item deadline selection.
 - Admin login, route guard, logout, and CRUD for configuration_items implemented (demo fallback when no env vars).
+- Supabase migration created for configuration_items with RLS policies and UUID default via pgcrypto.
 
 ## Next steps
 - Add migrations/SQL for year column and RLS policies.

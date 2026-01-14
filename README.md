@@ -11,6 +11,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 You can copy `.env.example` as a starting point.
 
+## Supabase Migrations
+
+Apply the SQL in `supabase/migrations/20250309000000_create_configuration_items.sql` using the Supabase SQL editor (or `supabase db push` if you use the CLI).
+
 ## Getting Started
 
 First, run the development server:
