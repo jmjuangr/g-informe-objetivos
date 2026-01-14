@@ -37,7 +37,7 @@ Create a fresh Next.js App Router project with the UI foundation and baseline st
 ---
 
 ## T002 — Supabase client setup + public read (smoke)
-**Status**: In progress (client + hook ready, env keys pending)
+**Status**: Done
 **Goal**
 Connect the app to Supabase and prove public read works (without auth).
 
@@ -124,6 +124,8 @@ Admins can login and access the dashboard; unauthenticated users are redirected.
 - Auth user can access it reliably.
 - Basic feedback and error messages.
 
+**Status**: Done (Supabase auth + demo fallback)
+
 ---
 
 ## T006 — Admin dashboard CRUD for `configuration_items`
@@ -142,6 +144,8 @@ Admins can create/update/delete configuration items.
 - CRUD works end-to-end against Supabase.
 - Toaster feedback for all operations.
 - No accidental public write paths.
+
+**Status**: Done (basic CRUD wired)
 
 ---
 

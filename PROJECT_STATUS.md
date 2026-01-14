@@ -6,15 +6,15 @@ Web app (Next.js + Supabase) for:
 - Public (anonymous): select items + fill metadata and export client-side CSV
 
 ## Current phase
-- Public generator UI updated for cascaded/filtered selection and per-item deadline; Supabase client prepared.
+- Public generator UI updated for cascaded selection and per-item deadline; admin auth + CRUD wired.
 
 ## Progress checklist (TASKS.md)
 - [x] T001 — Bootstrap project (Next.js + TS + Tailwind + shadcn/ui)
-- [ ] T002 — Supabase client setup + public read (smoke)
+- [x] T002 — Supabase client setup + public read (smoke)
 - [x] T003 — Public generator UI: header inputs + filters + selection state
 - [x] T004 — Client-side CSV export (no backend)
-- [ ] T005 — Admin auth (Supabase Auth) + protected routing
-- [ ] T006 — Admin dashboard CRUD for `configuration_items`
+- [x] T005 — Admin auth (Supabase Auth) + protected routing
+- [x] T006 — Admin dashboard CRUD for `configuration_items`
 - [ ] T007 — Supabase schema + RLS policies (migrations)
 - [ ] T008 — Hardening + UX polish
 
@@ -27,11 +27,11 @@ Web app (Next.js + Supabase) for:
 - CSV client-side export aligned to 1-row-per-item output with per-item deadline.
 - Public UI now supports cascaded selection (instruction -> work_line -> item_objective) plus filter mode.
 - Selected items move to a separate table with removal and per-item deadline selection.
+- Admin login, route guard, logout, and CRUD for configuration_items implemented (demo fallback when no env vars).
 
 ## Next steps
-- Implement admin auth flow and protected routing.
-- Build admin CRUD for `configuration_items` with the updated schema (including year).
 - Add migrations/SQL for year column and RLS policies.
+- Hardening: validations, empty states, and error messaging polish.
 
 ## Open questions / assumptions
 > Add any unknowns here. If Codex must assume something, it should write it to `/docs/assumptions.md`.
