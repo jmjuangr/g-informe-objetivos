@@ -4,22 +4,20 @@ import { createClient } from "@supabase/supabase-js"
 
 let browserClient: ReturnType<typeof createClient> | null = null
 
-const getEnv = (
-  key: "NEXT_PUBLIC_SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-) => {
-  const value = process.env[key]
-  if (!value) {
-    throw new Error(`${key} is required to initialize Supabase`)
-  }
-  return value
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl) {
+  throw new Error("NEXT_PUBLIC_SUPABASE_URL is required to initialize Supabase")
+}
+
+if (!supabaseAnonKey) {
+  throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is required to initialize Supabase")
 }
 
 export const getSupabaseBrowserClient = () => {
   if (!browserClient) {
-    browserClient = createClient(
-      getEnv("NEXT_PUBLIC_SUPABASE_URL"),
-      getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
-    )
+    browserClient = createClient(supabaseUrl, supabaseAnonKey)
   }
   return browserClient
 }
