@@ -45,6 +45,19 @@ const deadlineOptions = [
 const NO_INSTRUCTION = "sin-instruction"
 const NO_WORK_LINE = "sin-work-line"
 
+const getInstructionKey = (item: ConfigurationItem) => {
+  return item.instruction_id ?? item.instruction?.trim() ?? NO_INSTRUCTION
+}
+
+const getWorkLineKey = (
+  item: ConfigurationItem,
+  instructionKey: string,
+) => {
+  if (item.work_line_id) return item.work_line_id
+  if (item.work_line) return `${instructionKey}::${item.work_line.trim()}`
+  return `${instructionKey}::${NO_WORK_LINE}`
+}
+
 const mockItems: ConfigurationItem[] = [
   {
     id: "1",
@@ -128,7 +141,7 @@ export default function Home() {
   const instructionOptions = useMemo(() => {
     const map = new Map<string, string>()
     items.forEach((item) => {
-      const id = item.instruction_id ?? NO_INSTRUCTION
+      const id = getInstructionKey(item)
       const label = item.instruction || "Sin instruccion"
       if (!map.has(id)) {
         map.set(id, label)
@@ -143,9 +156,9 @@ export default function Home() {
     if (!selectedInstructionId) return []
     const map = new Map<string, string>()
     items.forEach((item) => {
-      const instructionId = item.instruction_id ?? NO_INSTRUCTION
+      const instructionId = getInstructionKey(item)
       if (instructionId !== selectedInstructionId) return
-      const id = item.work_line_id ?? NO_WORK_LINE
+      const id = getWorkLineKey(item, instructionId)
       const label = item.work_line || "Sin linea"
       if (!map.has(id)) {
         map.set(id, label)
@@ -159,8 +172,8 @@ export default function Home() {
   const cascadeItems = useMemo(() => {
     if (!selectedInstructionId || !selectedWorkLineId) return []
     return items.filter((item) => {
-      const instructionId = item.instruction_id ?? NO_INSTRUCTION
-      const workLineId = item.work_line_id ?? NO_WORK_LINE
+      const instructionId = getInstructionKey(item)
+      const workLineId = getWorkLineKey(item, instructionId)
       return (
         instructionId === selectedInstructionId &&
         workLineId === selectedWorkLineId
