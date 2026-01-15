@@ -49,7 +49,7 @@ UI/UX:
 - Permitido: construcción nativa de string CSV o helper ligero.
 - Prohibido: server routes para generar el CSV.
  - Formato: 1 fila por item_objective con columnas:
-   Entidad, Gestor, Comision, Instruccion, Materia, Submateria, Linea de Trabajo, Objetivo, Objetivo 2, Estado, Ano, Plazo.
+   Entidad, Gestor, Comision, Instruccion, Materia, Submateria, Linea de Trabajo, Objetivo, Objetivo 2, Observaciones, Plazo.
 
 ### 5.2 Supabase & RLS
 - Tablas normalizadas + vista `v_items_export` como en PRD.

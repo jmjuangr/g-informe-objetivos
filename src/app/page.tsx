@@ -119,7 +119,7 @@ export default function Home() {
   const [selectedInstructionId, setSelectedInstructionId] = useState("")
   const [selectedWorkLineId, setSelectedWorkLineId] = useState("")
   const [selectedItems, setSelectedItems] = useState<
-    Record<string, { item: ObjectiveItem; deadline: string }>
+    Record<string, { item: ObjectiveItem; deadline: string; observations: string }>
   >({})
 
   const mockInstructionOptions = useMemo(() => {
@@ -227,7 +227,7 @@ export default function Home() {
   const handleAddItem = (item: ObjectiveItem) => {
     setSelectedItems((prev) => {
       if (prev[item.id]) return prev
-      return { ...prev, [item.id]: { item, deadline: "" } }
+      return { ...prev, [item.id]: { item, deadline: "", observations: "" } }
     })
   }
 
@@ -243,7 +243,7 @@ export default function Home() {
       const next = { ...prev }
       availableItems.forEach((item) => {
         if (next[item.id]) return
-        next[item.id] = { item, deadline: "" }
+        next[item.id] = { item, deadline: "", observations: "" }
       })
       return next
     })
@@ -479,11 +479,10 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="rounded-lg border border-zinc-200/80">
-                    <div className="grid grid-cols-[1.6fr_1.2fr_1fr_0.5fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
+                    <div className="grid grid-cols-[1.6fr_1.1fr_1.4fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
                       <span>Item</span>
                       <span>Plazo</span>
-                      <span>Estado</span>
-                      <span>Año</span>
+                      <span>Observaciones</span>
                       <span>Accion</span>
                     </div>
                     {groupedSelectedRows.map(([instruction, rows]) => (
@@ -491,10 +490,10 @@ export default function Home() {
                         <div className="border-b border-zinc-200/80 bg-zinc-100 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
                           {instruction}
                         </div>
-                        {rows.map(({ item, deadline }) => (
+                        {rows.map(({ item, deadline, observations }) => (
                           <div
                             key={item.id}
-                            className="grid grid-cols-[1.6fr_1.2fr_1fr_0.5fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
+                            className="grid grid-cols-[1.6fr_1.1fr_1.4fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
                           >
                             <div>
                               <div className="font-medium text-zinc-900">
@@ -524,10 +523,19 @@ export default function Home() {
                                 ))}
                               </SelectContent>
                             </Select>
-                            <div className="text-xs text-zinc-600">
-                              {item.status ?? "Sin estado"}
-                            </div>
-                            <div className="text-xs text-zinc-600">{item.year}</div>
+                            <Input
+                              value={observations}
+                              onChange={(event) =>
+                                setSelectedItems((prev) => ({
+                                  ...prev,
+                                  [item.id]: {
+                                    ...prev[item.id],
+                                    observations: event.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="Observaciones"
+                            />
                             <Button
                               type="button"
                               size="sm"

@@ -8,6 +8,7 @@ export type CsvMetadata = {
 export type CsvItemSelection = {
   item: ObjectiveItem
   deadline: string
+  observations: string
 }
 
 const METADATA_HEADERS = ["Entidad", "Gestor"]
@@ -19,8 +20,7 @@ const ITEM_HEADERS = [
   "Línea de Trabajo",
   "Objetivo",
   "Objetivo 2",
-  "Estado",
-  "Año",
+  "Observaciones",
   "Plazo",
 ]
 
@@ -30,7 +30,7 @@ export const buildCsvRows = (
   metadata: CsvMetadata,
   selections: CsvItemSelection[],
 ) => {
-  return selections.map(({ item, deadline }) => [
+  return selections.map(({ item, deadline, observations }) => [
     metadata.entity,
     metadata.manager,
     item.commission ?? "",
@@ -40,8 +40,7 @@ export const buildCsvRows = (
     item.work_line ?? "",
     item.item_objective ?? "",
     item.item_objective_2 ?? "",
-    item.status ?? "",
-    String(item.year),
+    observations,
     deadline,
   ])
 }

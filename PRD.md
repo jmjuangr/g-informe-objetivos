@@ -42,7 +42,7 @@ El sistema permite a los **Administradores** configurar un catálogo de ítems j
 - **Motor de Exportación:**
   - Generación de CSV en el cliente (Client-side).
   - Formato: 1 fila por item_objective con las columnas:
-    Entidad, Gestor, Comision, Instruccion, Materia, Submateria, Linea de Trabajo, Objetivo, Objetivo 2, Estado, Ano, Plazo
+    Entidad, Gestor, Comision, Instruccion, Materia, Submateria, Linea de Trabajo, Objetivo, Objetivo 2, Observaciones, Plazo
 
 ## 4. Database Schema (Supabase)
 
