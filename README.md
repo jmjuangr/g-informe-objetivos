@@ -13,7 +13,7 @@ You can copy `.env.example` as a starting point.
 
 ## Supabase Migrations
 
-Apply the SQL in `supabase/migrations/20250309000000_create_configuration_items.sql` using the Supabase SQL editor (or `supabase db push` if you use the CLI).
+Apply the SQL in `supabase/migrations/20250312000000_create_normalized_schema.sql` (and keep the legacy migration if needed) using the Supabase SQL editor (or `supabase db push` if you use the CLI).
 
 ## Getting Started
 

@@ -25,7 +25,7 @@ El sistema permite a los **Administradores** configurar un catálogo de ítems j
 ### 3.1. Panel de Administración (Protected)
 - **Tabla de Gestión:** Interfaz (shadcn/ui Data Table) para visualizar todos los ítems.
 - **Formulario de Ítem:**
-  - Campos: Comisión, Instrucción, Materia, Submateria, Línea de Trabajo, Objetivo, Objetivo 2, Estado, Año.
+  - Campos: Comisión, Instrucción, Materia, Submateria, Línea de Trabajo, Objetivo, Estado, Año, Código heredado.
   - Validaciones: Zod (campos requeridos).
 
 ### 3.2. Generador Público de Informes
@@ -46,32 +46,41 @@ El sistema permite a los **Administradores** configurar un catálogo de ítems j
 
 ## 4. Database Schema (Supabase)
 
-### Table: `configuration_items`
+### Tablas normalizadas
 
-Columnas tabla maestra:
+- `commissions` (id, name, created_at)
+- `instructions` (id, commission_id, name, created_at, legacy_instruction_id optional)
+- `matters` (id, instruction_id, name, created_at)
+- `submatters` (id, matter_id, name, created_at)
+- `work_lines` (id, code, display_name, sort_order, created_at)
+- `items_objetivo` (id, instruction_id, submatter_id, work_line_id, title, status, year, legacy_item_code, created_at)
 
-id,created_at,instruction_id,item_objective,commission,instruction,matter,submatter,work_line_id,work_line,work_line_unified,item_id,item_objective_2,status,year
+### View de lectura (plana)
 
-Relaciones
+- `v_items_export` con columnas para UI/CSV:
+  - item_uuid, item_code, title, status, year
+  - instruction_uuid, instruction, commission
+  - matter, submatter
+  - work_line_uuid, work_line_code, work_line
 
-1 instruction tiene n work_lines 
-1 work_line tiene n item_objectives
+Relaciones:
+
+1 instruction tiene n work_lines
+1 work_line tiene n items_objetivo
 
 Notas:
 - El plazo no se almacena en la tabla; se selecciona al exportar.
 
-Ver archivo configuration_items_rows.csv en raiz del proyecto
-
 **Row Level Security (RLS) Policies:**
 1. **Enable RLS.**
-2. **Policy Public Read:** `SELECT` allowed for `anon` role (true).
-3. **Policy Admin Full:** `ALL` allowed for `authenticated` users only.
+2. **Policy Public Read:** `SELECT` allowed for `anon` role (true) sobre tablas de lectura y/o `v_items_export`.
+3. **Policy Admin Full:** `ALL` allowed for `authenticated` users only en tablas de escritura.
 
 ## 5. Site Map & Routing
 
 - `src/app/page.tsx` -> **Vista Pública.** Formulario de entrada (Entidad/Gestor) + Selección de Ítems + Botón "Exportar CSV".
 - `src/app/login/page.tsx` -> Formulario de acceso para admins.
-- `src/app/admin/dashboard/page.tsx` -> **Vista Privada.** CRUD de `configuration_items`.
+- `src/app/admin/dashboard/page.tsx` -> **Vista Privada.** CRUD de `items_objetivo`.
 
 ## 6. UI/UX Guidelines (shadcn/ui)
 

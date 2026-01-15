@@ -12,42 +12,57 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-  createConfigurationItem,
-  deleteConfigurationItem,
-  fetchConfigurationItemsRaw,
-  updateConfigurationItem,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  createItemObjetivo,
+  deleteItemObjetivo,
+  fetchCommissions,
+  fetchInstructionById,
+  fetchInstructionsByCommission,
+  fetchItemObjetivoById,
+  fetchItemsExport,
+  fetchMattersByInstruction,
+  fetchSubmatterById,
+  fetchSubmattersByMatter,
+  fetchWorkLines,
+  updateItemObjetivo,
 } from "@/lib/supabase/queries"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
-import type { ConfigurationItemInput, ConfigurationItemRecord } from "@/lib/supabase/types"
+import type {
+  CommissionRecord,
+  InstructionRecord,
+  ItemObjetivoInput,
+  ItemsExportRecord,
+  MatterRecord,
+  SubmatterRecord,
+  WorkLineRecord,
+} from "@/lib/supabase/types"
 
 const formSchema = z.object({
-  instruction_id: z.string().optional(),
-  work_line_id: z.string().optional(),
-  item_id: z.string().optional(),
-  commission: z.string().min(1, "Comision requerida"),
-  instruction: z.string().min(1, "Instruccion requerida"),
-  matter: z.string().min(1, "Materia requerida"),
-  submatter: z.string().min(1, "Submateria requerida"),
-  work_line: z.string().optional(),
-  work_line_unified: z.string().optional(),
-  item_objective: z.string().min(1, "Objetivo requerido"),
-  item_objective_2: z.string().optional(),
+  commission_id: z.string().min(1, "Comision requerida"),
+  instruction_id: z.string().min(1, "Instruccion requerida"),
+  matter_id: z.string().min(1, "Materia requerida"),
+  submatter_id: z.string().min(1, "Submateria requerida"),
+  work_line_id: z.string().min(1, "Linea requerida"),
+  legacy_item_code: z.string().optional(),
+  title: z.string().min(1, "Objetivo requerido"),
   status: z.string().optional(),
   year: z.number().int().min(2000, "Año requerido"),
 })
 
 const defaultValues: z.infer<typeof formSchema> = {
+  commission_id: "",
   instruction_id: "",
+  matter_id: "",
+  submatter_id: "",
   work_line_id: "",
-  item_id: "",
-  commission: "",
-  instruction: "",
-  matter: "",
-  submatter: "",
-  work_line: "",
-  work_line_unified: "",
-  item_objective: "",
-  item_objective_2: "",
+  legacy_item_code: "",
+  title: "",
   status: "",
   year: 2026,
 }
@@ -57,32 +72,29 @@ const normalizeOptional = (value?: string) => {
   return trimmed.length > 0 ? trimmed : null
 }
 
-const toPayload = (values: z.infer<typeof formSchema>): ConfigurationItemInput => {
+const toPayload = (values: z.infer<typeof formSchema>): ItemObjetivoInput => {
   return {
-    instruction_id: normalizeOptional(values.instruction_id),
-    work_line_id: normalizeOptional(values.work_line_id),
-    item_id: normalizeOptional(values.item_id),
-    commission: values.commission.trim(),
-    instruction: values.instruction.trim(),
-    matter: values.matter.trim(),
-    submatter: values.submatter.trim(),
-    work_line: normalizeOptional(values.work_line),
-    work_line_unified:
-      normalizeOptional(values.work_line_unified) ??
-      normalizeOptional(values.work_line),
-    item_objective: values.item_objective.trim(),
-    item_objective_2: normalizeOptional(values.item_objective_2),
+    instruction_id: values.instruction_id,
+    submatter_id: values.submatter_id,
+    work_line_id: values.work_line_id,
+    title: values.title.trim(),
     status: normalizeOptional(values.status),
     year: values.year,
+    legacy_item_code: normalizeOptional(values.legacy_item_code),
   }
 }
 
 export default function AdminDashboardPage() {
   const router = useRouter()
-  const [items, setItems] = useState<ConfigurationItemRecord[]>([])
+  const [items, setItems] = useState<ItemsExportRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [commissions, setCommissions] = useState<CommissionRecord[]>([])
+  const [instructions, setInstructions] = useState<InstructionRecord[]>([])
+  const [matters, setMatters] = useState<MatterRecord[]>([])
+  const [submatters, setSubmatters] = useState<SubmatterRecord[]>([])
+  const [workLines, setWorkLines] = useState<WorkLineRecord[]>([])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -90,16 +102,34 @@ export default function AdminDashboardPage() {
   })
 
   const isEditing = Boolean(editingId)
+  const selectedCommissionId = form.watch("commission_id")
+  const selectedInstructionId = form.watch("instruction_id")
+  const selectedMatterId = form.watch("matter_id")
+  const selectedSubmatterId = form.watch("submatter_id")
+  const selectedWorkLineId = form.watch("work_line_id")
 
   const loadItems = async () => {
     setLoading(true)
     try {
-      const data = await fetchConfigurationItemsRaw()
+      const data = await fetchItemsExport()
       setItems(data)
     } catch (error) {
       toast.error("No se pudieron cargar los items.")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadDimensions = async () => {
+    try {
+      const [commissionData, workLineData] = await Promise.all([
+        fetchCommissions(),
+        fetchWorkLines(),
+      ])
+      setCommissions(commissionData)
+      setWorkLines(workLineData)
+    } catch (error) {
+      toast.error("No se pudieron cargar las dimensiones.")
     }
   }
 
@@ -117,6 +147,7 @@ export default function AdminDashboardPage() {
             return
           }
           await loadItems()
+          await loadDimensions()
           return
         }
 
@@ -128,6 +159,7 @@ export default function AdminDashboardPage() {
           return
         }
         await loadItems()
+        await loadDimensions()
       } catch (error) {
         toast.error("No se pudo validar la sesion.")
       }
@@ -139,6 +171,72 @@ export default function AdminDashboardPage() {
       active = false
     }
   }, [router])
+
+  useEffect(() => {
+    if (!selectedCommissionId) {
+      setInstructions([])
+      return
+    }
+
+    let active = true
+    fetchInstructionsByCommission(selectedCommissionId)
+      .then((data) => {
+        if (!active) return
+        setInstructions(data)
+      })
+      .catch(() => {
+        if (!active) return
+        toast.error("No se pudieron cargar las instrucciones.")
+      })
+
+    return () => {
+      active = false
+    }
+  }, [selectedCommissionId])
+
+  useEffect(() => {
+    if (!selectedInstructionId) {
+      setMatters([])
+      return
+    }
+
+    let active = true
+    fetchMattersByInstruction(selectedInstructionId)
+      .then((data) => {
+        if (!active) return
+        setMatters(data)
+      })
+      .catch(() => {
+        if (!active) return
+        toast.error("No se pudieron cargar las materias.")
+      })
+
+    return () => {
+      active = false
+    }
+  }, [selectedInstructionId])
+
+  useEffect(() => {
+    if (!selectedMatterId) {
+      setSubmatters([])
+      return
+    }
+
+    let active = true
+    fetchSubmattersByMatter(selectedMatterId)
+      .then((data) => {
+        if (!active) return
+        setSubmatters(data)
+      })
+      .catch(() => {
+        if (!active) return
+        toast.error("No se pudieron cargar las submaterias.")
+      })
+
+    return () => {
+      active = false
+    }
+  }, [selectedMatterId])
 
   const handleLogout = async () => {
     try {
@@ -158,30 +256,54 @@ export default function AdminDashboardPage() {
     }
   }
 
-  const handleEdit = (item: ConfigurationItemRecord) => {
-    setEditingId(item.id)
-    form.reset({
-      instruction_id: item.instruction_id ?? "",
-      work_line_id: item.work_line_id ?? "",
-      item_id: item.item_id ?? "",
-      commission: item.commission ?? "",
-      instruction: item.instruction ?? "",
-      matter: item.matter ?? "",
-      submatter: item.submatter ?? "",
-      work_line: item.work_line ?? "",
-      work_line_unified: item.work_line_unified ?? "",
-      item_objective: item.item_objective ?? "",
-      item_objective_2: item.item_objective_2 ?? "",
-      status: item.status ?? "",
-      year: item.year ?? 2026,
-    })
+  const handleEdit = (item: ItemsExportRecord) => {
+    setEditingId(item.item_uuid)
+    const hydrate = async () => {
+      try {
+        const record = await fetchItemObjetivoById(item.item_uuid)
+        const instruction = await fetchInstructionById(record.instruction_id)
+        const submatter = await fetchSubmatterById(record.submatter_id)
+        if (instruction.commission_id) {
+          const instructionOptions = await fetchInstructionsByCommission(
+            instruction.commission_id,
+          )
+          setInstructions(instructionOptions)
+        } else {
+          setInstructions([])
+        }
+
+        const [matterOptions, submatterOptions] = await Promise.all([
+          fetchMattersByInstruction(record.instruction_id),
+          fetchSubmattersByMatter(submatter.matter_id),
+        ])
+
+        setMatters(matterOptions)
+        setSubmatters(submatterOptions)
+
+        form.reset({
+          commission_id: instruction.commission_id ?? "",
+          instruction_id: record.instruction_id,
+          matter_id: submatter.matter_id,
+          submatter_id: record.submatter_id,
+          work_line_id: record.work_line_id,
+          legacy_item_code: record.legacy_item_code ?? "",
+          title: record.title,
+          status: record.status ?? "",
+          year: record.year ?? 2026,
+        })
+      } catch (error) {
+        toast.error("No se pudo cargar el item.")
+      }
+    }
+
+    hydrate()
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm("Eliminar este item?")) return
     try {
-      await deleteConfigurationItem(id)
-      setItems((prev) => prev.filter((item) => item.id !== id))
+      await deleteItemObjetivo(id)
+      setItems((prev) => prev.filter((item) => item.item_uuid !== id))
       toast.success("Item eliminado.")
     } catch (error) {
       toast.error("No se pudo eliminar el item.")
@@ -191,6 +313,9 @@ export default function AdminDashboardPage() {
   const handleNew = () => {
     setEditingId(null)
     form.reset(defaultValues)
+    setInstructions([])
+    setMatters([])
+    setSubmatters([])
   }
 
   const onSubmit = form.handleSubmit(async (values) => {
@@ -198,16 +323,13 @@ export default function AdminDashboardPage() {
     try {
       const payload = toPayload(values)
       if (editingId) {
-        const updated = await updateConfigurationItem(editingId, payload)
-        setItems((prev) =>
-          prev.map((item) => (item.id === updated.id ? updated : item)),
-        )
+        await updateItemObjetivo(editingId, payload)
         toast.success("Item actualizado.")
       } else {
-        const created = await createConfigurationItem(payload)
-        setItems((prev) => [created, ...prev])
+        await createItemObjetivo(payload)
         toast.success("Item creado.")
       }
+      await loadItems()
       handleNew()
     } catch (error) {
       toast.error("No se pudo guardar el item.")
@@ -253,48 +375,117 @@ export default function AdminDashboardPage() {
           <CardContent>
             <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
               <div className="space-y-2">
-                <Label>Instruction ID</Label>
-                <Input {...form.register("instruction_id")} />
-              </div>
-              <div className="space-y-2">
-                <Label>Work Line ID</Label>
-                <Input {...form.register("work_line_id")} />
-              </div>
-              <div className="space-y-2">
-                <Label>Item ID</Label>
-                <Input {...form.register("item_id")} />
-              </div>
-              <div className="space-y-2">
                 <Label>Comision</Label>
-                <Input {...form.register("commission")} />
+                <Select
+                  value={selectedCommissionId}
+                  onValueChange={(value) => {
+                    form.setValue("commission_id", value)
+                    form.setValue("instruction_id", "")
+                    form.setValue("matter_id", "")
+                    form.setValue("submatter_id", "")
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {commissions.map((commission) => (
+                      <SelectItem key={commission.id} value={commission.id}>
+                        {commission.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Instruccion</Label>
-                <Input {...form.register("instruction")} />
+                <Select
+                  value={selectedInstructionId}
+                  onValueChange={(value) => {
+                    form.setValue("instruction_id", value)
+                    form.setValue("matter_id", "")
+                    form.setValue("submatter_id", "")
+                  }}
+                  disabled={!selectedCommissionId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {instructions.map((instruction) => (
+                      <SelectItem key={instruction.id} value={instruction.id}>
+                        {instruction.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Materia</Label>
-                <Input {...form.register("matter")} />
+                <Select
+                  value={selectedMatterId}
+                  onValueChange={(value) => {
+                    form.setValue("matter_id", value)
+                    form.setValue("submatter_id", "")
+                  }}
+                  disabled={!selectedInstructionId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {matters.map((matter) => (
+                      <SelectItem key={matter.id} value={matter.id}>
+                        {matter.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Submateria</Label>
-                <Input {...form.register("submatter")} />
+                <Select
+                  value={selectedSubmatterId}
+                  onValueChange={(value) => form.setValue("submatter_id", value)}
+                  disabled={!selectedMatterId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {submatters.map((submatter) => (
+                      <SelectItem key={submatter.id} value={submatter.id}>
+                        {submatter.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Linea de trabajo</Label>
-                <Input {...form.register("work_line")} />
+                <Select
+                  value={selectedWorkLineId}
+                  onValueChange={(value) => form.setValue("work_line_id", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workLines.map((workLine) => (
+                      <SelectItem key={workLine.id} value={workLine.id}>
+                        {workLine.display_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <Label>Linea de trabajo unificada</Label>
-                <Input {...form.register("work_line_unified")} />
+                <Label>Codigo heredado</Label>
+                <Input {...form.register("legacy_item_code")} />
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Objetivo</Label>
-                <Input {...form.register("item_objective")} />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Objetivo 2</Label>
-                <Input {...form.register("item_objective_2")} />
+                <Input {...form.register("title")} />
               </div>
               <div className="space-y-2">
                 <Label>Estado</Label>
@@ -344,20 +535,20 @@ export default function AdminDashboardPage() {
                 </div>
                 {sortedItems.map((item) => (
                   <div
-                    key={item.id}
+                    key={item.item_uuid}
                     className="grid grid-cols-[1.4fr_1fr_1.6fr_0.7fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
                   >
                     <div className="text-xs text-zinc-700">
                       {item.instruction ?? "Sin instruccion"}
                     </div>
                     <div className="text-xs text-zinc-600">
-                      {item.work_line_unified ?? item.work_line ?? "Sin linea"}
+                      {item.work_line ?? "Sin linea"}
                     </div>
                     <div className="text-xs text-zinc-600">
-                      {item.item_objective ?? "Sin objetivo"}
+                      {item.title ?? "Sin objetivo"}
                     </div>
                     <div className="text-xs text-zinc-500">
-                      {item.item_id ?? "Sin ID"}
+                      {item.item_code ?? "Sin ID"}
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -372,7 +563,7 @@ export default function AdminDashboardPage() {
                         type="button"
                         size="sm"
                         variant="ghost"
-                        onClick={() => handleDelete(item.id)}
+                        onClick={() => handleDelete(item.item_uuid)}
                       >
                         Eliminar
                       </Button>

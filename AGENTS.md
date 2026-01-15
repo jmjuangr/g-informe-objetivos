@@ -8,7 +8,7 @@ Antes de escribir código:
 
 ## 1) Contexto del proyecto (qué es)
 Aplicación web para:
-- **Administradores (authenticated)**: CRUD de ítems de configuración (catálogo jerárquico desnormalizado).
+- **Administradores (authenticated)**: CRUD de ítems de configuración (catálogo jerárquico normalizado).
 - **Usuarios públicos/anónimos (anon)**: seleccionar ítems + introducir metadatos y **generar un CSV** (100% client-side).
 
 ## 2) Tech stack (obligatorio)
@@ -34,11 +34,11 @@ UI/UX:
    - NO crear rutas backend/API para CSV.
 2) **Acceso público**:
    - La vista principal (generador) es pública.
-   - RLS debe permitir `anon` hacer `SELECT` sobre `configuration_items`.
-3) **DB plana**:
-   - Mantener tabla `configuration_items` desnormalizada para el MVP.
+   - RLS debe permitir `anon` hacer `SELECT` sobre la vista `v_items_export` (o tablas de lectura necesarias).
+3) **Esquema normalizado**:
+   - Mantener tablas normalizadas y la vista `v_items_export` para el consumo en UI/CSV.
 4) **Año fijo**:
-   - El año es fijo (2026) y se guarda en la tabla `configuration_items`.
+   - El año es fijo (2026) y se guarda en `items_objetivo`.
 5) **Plazo por item**:
    - El plazo se define por cada item seleccionado (no se guarda en la tabla).
 
@@ -52,7 +52,7 @@ UI/UX:
    Entidad, Gestor, Comision, Instruccion, Materia, Submateria, Linea de Trabajo, Objetivo, Objetivo 2, Estado, Ano, Plazo.
 
 ### 5.2 Supabase & RLS
-- Tabla: `configuration_items` como en PRD.
+- Tablas normalizadas + vista `v_items_export` como en PRD.
 - Activar RLS.
 - Policies:
   - Public Read: permitir SELECT para `anon`.

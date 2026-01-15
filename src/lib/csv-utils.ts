@@ -1,4 +1,4 @@
-import type { ConfigurationItem } from "@/lib/supabase/types"
+import type { ObjectiveItem } from "@/lib/supabase/types"
 
 export type CsvMetadata = {
   entity: string
@@ -6,7 +6,7 @@ export type CsvMetadata = {
 }
 
 export type CsvItemSelection = {
-  item: ConfigurationItem
+  item: ObjectiveItem
   deadline: string
 }
 
@@ -33,10 +33,10 @@ export const buildCsvRows = (
   return selections.map(({ item, deadline }) => [
     metadata.entity,
     metadata.manager,
-    item.commission,
+    item.commission ?? "",
     item.instruction,
-    item.matter,
-    item.submatter,
+    item.matter ?? "",
+    item.submatter ?? "",
     item.work_line ?? "",
     item.item_objective ?? "",
     item.item_objective_2 ?? "",

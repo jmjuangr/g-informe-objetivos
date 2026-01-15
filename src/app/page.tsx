@@ -20,14 +20,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { useConfigurationItems } from "@/hooks/use-configuration-items"
+import { useInstructions } from "@/hooks/use-instructions"
+import { useObjectiveItems } from "@/hooks/use-objective-items"
+import { useWorkLines } from "@/hooks/use-work-lines"
 import {
   buildCsvHeaders,
   buildCsvRows,
   stringifyCsv,
   triggerCsvDownload,
 } from "@/lib/csv-utils"
-import type { ConfigurationItem } from "@/lib/supabase/types"
+import type { ObjectiveItem } from "@/lib/supabase/types"
 
 const formSchema = z.object({
   entity: z.string().min(2, "Entidad requerida"),
@@ -42,26 +44,14 @@ const deadlineOptions = [
   "Año completo",
 ] as const
 
-const NO_INSTRUCTION = "sin-instruction"
-const NO_WORK_LINE = "sin-work-line"
-
-const getInstructionKey = (item: ConfigurationItem) => {
-  return item.instruction_id ?? item.instruction?.trim() ?? NO_INSTRUCTION
+type MockObjectiveItem = ObjectiveItem & {
+  instruction_id: string
+  work_line_id: string
 }
 
-const getWorkLineKey = (
-  item: ConfigurationItem,
-  instructionKey: string,
-) => {
-  if (item.work_line_id) return item.work_line_id
-  if (item.work_line) return `${instructionKey}::${item.work_line.trim()}`
-  return `${instructionKey}::${NO_WORK_LINE}`
-}
-
-const mockItems: ConfigurationItem[] = [
+const mockItems: MockObjectiveItem[] = [
   {
     id: "1",
-    created_at: "2024-01-01T00:00:00Z",
     instruction_id: "INS-01",
     work_line_id: "WL-01",
     item_id: "OBJ-001",
@@ -77,7 +67,6 @@ const mockItems: ConfigurationItem[] = [
   },
   {
     id: "2",
-    created_at: "2024-01-01T00:00:00Z",
     instruction_id: "INS-01",
     work_line_id: "WL-02",
     item_id: "OBJ-002",
@@ -85,7 +74,7 @@ const mockItems: ConfigurationItem[] = [
     instruction: "Instrucción 2",
     matter: "Materia 2",
     submatter: "Submateria 2",
-    work_line: null,
+    work_line: "Línea 2",
     item_objective: "Objetivo principal 2",
     item_objective_2: null,
     status: "En revisión",
@@ -93,7 +82,6 @@ const mockItems: ConfigurationItem[] = [
   },
   {
     id: "3",
-    created_at: "2024-01-01T00:00:00Z",
     instruction_id: "INS-02",
     work_line_id: "WL-03",
     item_id: "OBJ-003",
@@ -109,7 +97,6 @@ const mockItems: ConfigurationItem[] = [
   },
   {
     id: "4",
-    created_at: "2024-01-01T00:00:00Z",
     instruction_id: "INS-03",
     work_line_id: "WL-04",
     item_id: "OBJ-004",
@@ -117,7 +104,7 @@ const mockItems: ConfigurationItem[] = [
     instruction: "Instrucción 3",
     matter: "Materia 4",
     submatter: "Submateria 2",
-    work_line: "Línea 2",
+    work_line: "Línea 4",
     item_objective: "Objetivo principal 4",
     item_objective_2: null,
     status: "Activo",
@@ -129,75 +116,94 @@ export default function Home() {
   const hasSupabaseEnv =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY)
-  const { data, error, loading } = useConfigurationItems({
-    enabled: hasSupabaseEnv,
-  })
-  const items = hasSupabaseEnv ? data : mockItems
-
   const [selectedInstructionId, setSelectedInstructionId] = useState("")
   const [selectedWorkLineId, setSelectedWorkLineId] = useState("")
-  const [selectedItems, setSelectedItems] = useState<Record<string, string>>({})
+  const [selectedItems, setSelectedItems] = useState<
+    Record<string, { item: ObjectiveItem; deadline: string }>
+  >({})
 
-  const instructionOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    items.forEach((item) => {
-      const id = getInstructionKey(item)
-      const label = item.instruction || "Sin instruccion"
-      if (!map.has(id)) {
-        map.set(id, label)
+  const mockInstructionOptions = useMemo(() => {
+    const map = new Map<string, { label: string; commission: string | null }>()
+    mockItems.forEach((item) => {
+      if (!map.has(item.instruction_id)) {
+        map.set(item.instruction_id, {
+          label: item.instruction,
+          commission: item.commission ?? null,
+        })
       }
     })
     return Array.from(map.entries())
-      .map(([value, label]) => ({ value, label }))
+      .map(([id, value]) => ({ id, label: value.label, commission: value.commission }))
       .sort((a, b) => a.label.localeCompare(b.label))
-  }, [items])
+  }, [])
 
-  const workLineOptions = useMemo(() => {
+  const mockWorkLineOptions = useMemo(() => {
     if (!selectedInstructionId) return []
-    const map = new Map<string, string>()
-    items.forEach((item) => {
-      const instructionId = getInstructionKey(item)
-      if (instructionId !== selectedInstructionId) return
-      const id = getWorkLineKey(item, instructionId)
-      const label = item.work_line || "Sin linea"
-      if (!map.has(id)) {
-        map.set(id, label)
+    const map = new Map<string, { label: string; code: string | null }>()
+    mockItems.forEach((item) => {
+      if (item.instruction_id !== selectedInstructionId) return
+      if (!map.has(item.work_line_id)) {
+        map.set(item.work_line_id, {
+          label: item.work_line ?? "Sin linea",
+          code: null,
+        })
       }
     })
     return Array.from(map.entries())
-      .map(([value, label]) => ({ value, label }))
+      .map(([id, value]) => ({
+        id,
+        label: value.label,
+        code: value.code,
+        sort_order: null,
+      }))
       .sort((a, b) => a.label.localeCompare(b.label))
-  }, [items, selectedInstructionId])
+  }, [selectedInstructionId])
 
-  const cascadeItems = useMemo(() => {
+  const mockObjectiveItems = useMemo(() => {
     if (!selectedInstructionId || !selectedWorkLineId) return []
-    return items.filter((item) => {
-      const instructionId = getInstructionKey(item)
-      const workLineId = getWorkLineKey(item, instructionId)
-      return (
-        instructionId === selectedInstructionId &&
-        workLineId === selectedWorkLineId
+    return mockItems
+      .filter(
+        (item) =>
+          item.instruction_id === selectedInstructionId &&
+          item.work_line_id === selectedWorkLineId,
       )
-    })
-  }, [items, selectedInstructionId, selectedWorkLineId])
+      .map(({ instruction_id, ...rest }) => rest)
+  }, [selectedInstructionId, selectedWorkLineId])
 
-  const selectedIds = useMemo(
-    () => Object.keys(selectedItems),
-    [selectedItems],
-  )
+  const {
+    data: instructions,
+    error: instructionsError,
+    loading: instructionsLoading,
+  } = useInstructions({
+    enabled: hasSupabaseEnv,
+    fallback: mockInstructionOptions,
+  })
+
+  const {
+    data: workLines,
+    error: workLinesError,
+    loading: workLinesLoading,
+  } = useWorkLines(selectedInstructionId, {
+    enabled: hasSupabaseEnv,
+    fallback: mockWorkLineOptions,
+  })
+
+  const {
+    data: objectiveItems,
+    error: itemsError,
+    loading: itemsLoading,
+  } = useObjectiveItems(selectedInstructionId, selectedWorkLineId, {
+    enabled: hasSupabaseEnv,
+    fallback: mockObjectiveItems,
+  })
+
+  const selectedIds = useMemo(() => Object.keys(selectedItems), [selectedItems])
+
   const availableItems = useMemo(() => {
-    return cascadeItems.filter((item) => !selectedIds.includes(item.id))
-  }, [cascadeItems, selectedIds])
-  const selectedRows = useMemo(
-    () =>
-      items
-        .filter((item) => selectedIds.includes(item.id))
-        .map((item) => ({
-          item,
-          deadline: selectedItems[item.id] ?? "",
-        })),
-    [items, selectedIds, selectedItems],
-  )
+    return objectiveItems.filter((item) => !selectedIds.includes(item.id))
+  }, [objectiveItems, selectedIds])
+
+  const selectedRows = useMemo(() => Object.values(selectedItems), [selectedItems])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -207,12 +213,15 @@ export default function Home() {
     },
   })
 
-  const toggleSelection = (id: string, checked: boolean) => {
+  const handleAddItem = (item: ObjectiveItem) => {
     setSelectedItems((prev) => {
-      if (checked) {
-        if (prev[id]) return prev
-        return { ...prev, [id]: "" }
-      }
+      if (prev[item.id]) return prev
+      return { ...prev, [item.id]: { item, deadline: "" } }
+    })
+  }
+
+  const handleRemoveItem = (id: string) => {
+    setSelectedItems((prev) => {
       const { [id]: _, ...rest } = prev
       return rest
     })
@@ -222,9 +231,8 @@ export default function Home() {
     setSelectedItems((prev) => {
       const next = { ...prev }
       availableItems.forEach((item) => {
-        if (!next[item.id]) {
-          next[item.id] = ""
-        }
+        if (next[item.id]) return
+        next[item.id] = { item, deadline: "" }
       })
       return next
     })
@@ -337,8 +345,8 @@ export default function Home() {
                           <SelectValue placeholder="Selecciona" />
                         </SelectTrigger>
                         <SelectContent>
-                          {instructionOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
+                          {instructions.map((option) => (
+                            <SelectItem key={option.id} value={option.id}>
                               {option.label}
                             </SelectItem>
                           ))}
@@ -356,8 +364,8 @@ export default function Home() {
                           <SelectValue placeholder="Selecciona" />
                         </SelectTrigger>
                         <SelectContent>
-                          {workLineOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
+                          {workLines.map((option) => (
+                            <SelectItem key={option.id} value={option.id}>
                               {option.label}
                             </SelectItem>
                           ))}
@@ -375,15 +383,16 @@ export default function Home() {
               <CardHeader className="space-y-2">
                 <CardTitle>Items disponibles</CardTitle>
                 <CardDescription>
-                  {loading
+                  {itemsLoading || instructionsLoading || workLinesLoading
                     ? "Cargando catalogo..."
                     : `${availableItems.length} disponibles`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {error && (
+                {(instructionsError || workLinesError || itemsError) && (
                   <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    Error al cargar items: {error.message}
+                    Error al cargar items:{" "}
+                    {(itemsError ?? workLinesError ?? instructionsError)?.message}
                   </div>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
@@ -428,13 +437,13 @@ export default function Home() {
                       <Button
                         type="button"
                         size="sm"
-                        onClick={() => toggleSelection(item.id, true)}
+                        onClick={() => handleAddItem(item)}
                       >
                         Añadir
                       </Button>
                     </div>
                   ))}
-                  {!loading && availableItems.length === 0 && (
+                  {!itemsLoading && availableItems.length === 0 && (
                     <div className="px-4 py-6 text-sm text-zinc-500">
                       {!selectedInstructionId || !selectedWorkLineId
                         ? "Selecciona instruccion y linea para ver items."
@@ -484,7 +493,7 @@ export default function Home() {
                           onValueChange={(value) =>
                             setSelectedItems((prev) => ({
                               ...prev,
-                              [item.id]: value,
+                              [item.id]: { ...prev[item.id], deadline: value },
                             }))
                           }
                         >
@@ -507,7 +516,7 @@ export default function Home() {
                           type="button"
                           size="sm"
                           variant="ghost"
-                          onClick={() => toggleSelection(item.id, false)}
+                          onClick={() => handleRemoveItem(item.id)}
                         >
                           Quitar
                         </Button>
