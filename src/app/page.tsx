@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import Link from "next/link"
+import { Document, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,12 +24,6 @@ import { Separator } from "@/components/ui/separator"
 import { useInstructions } from "@/hooks/use-instructions"
 import { useObjectiveItems } from "@/hooks/use-objective-items"
 import { useWorkLines } from "@/hooks/use-work-lines"
-import {
-  buildCsvHeaders,
-  buildCsvRows,
-  stringifyCsv,
-  triggerCsvDownload,
-} from "@/lib/csv-utils"
 import type { ObjectiveItem } from "@/lib/supabase/types"
 
 const formSchema = z.object({
@@ -60,6 +55,53 @@ type DraftPayload = {
 }
 
 const DRAFT_VERSION = 1
+
+const pdfStyles = StyleSheet.create({
+  page: {
+    padding: 28,
+    fontSize: 10,
+    fontFamily: "Helvetica",
+    color: "#111827",
+  },
+  header: {
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 16,
+    marginBottom: 6,
+    fontWeight: 700,
+  },
+  meta: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  section: {
+    marginTop: 12,
+  },
+  instruction: {
+    fontSize: 12,
+    fontWeight: 600,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+    paddingBottom: 4,
+    marginBottom: 6,
+  },
+  row: {
+    marginBottom: 8,
+  },
+  rowTitle: {
+    fontSize: 11,
+    fontWeight: 600,
+  },
+  rowLine: {
+    fontSize: 10,
+    color: "#374151",
+  },
+  rowMeta: {
+    fontSize: 10,
+    color: "#111827",
+  },
+})
 
 type MockObjectiveItem = ObjectiveItem & {
   instruction_id: string
@@ -343,32 +385,84 @@ export default function Home() {
     reader.readAsText(file)
   }
 
+  const buildPdfDocument = (
+    metadata: { entity: string; manager: string },
+    groupedRows: [string, typeof selectedRows][],
+  ) => {
+    return (
+      <Document>
+        <Page size="A4" style={pdfStyles.page}>
+          <View style={pdfStyles.header}>
+            <Text style={pdfStyles.title}>Informe de objetivos</Text>
+            <Text style={pdfStyles.meta}>Entidad: {metadata.entity}</Text>
+            <Text style={pdfStyles.meta}>Gestor: {metadata.manager}</Text>
+            <Text style={pdfStyles.meta}>
+              Fecha: {new Date().toLocaleDateString()}
+            </Text>
+          </View>
+          {groupedRows.map(([instruction, rows]) => (
+            <View key={instruction} style={pdfStyles.section}>
+              <Text style={pdfStyles.instruction}>{instruction}</Text>
+              {rows.map(({ item, deadline, observations }) => (
+                <View key={item.id} style={pdfStyles.row}>
+                  <Text style={pdfStyles.rowTitle}>
+                    {item.item_objective ?? "Sin objetivo"}
+                  </Text>
+                  <Text style={pdfStyles.rowLine}>
+                    Linea: {item.work_line ?? "Sin linea"}
+                  </Text>
+                  <Text style={pdfStyles.rowMeta}>
+                    Observaciones: {observations || "-"}
+                  </Text>
+                  <Text style={pdfStyles.rowMeta}>Plazo: {deadline}</Text>
+                </View>
+              ))}
+            </View>
+          ))}
+        </Page>
+      </Document>
+    )
+  }
+
+  const handleExportPdf = async (values: z.infer<typeof formSchema>) => {
+    if (selectedRows.length === 0) {
+      toast.error("Selecciona al menos un item antes de exportar.")
+      return
+    }
+    const missingDeadline = selectedRows.some(({ deadline }) => !deadline)
+    if (missingDeadline) {
+      toast.error("Selecciona el plazo para cada item.")
+      return
+    }
+
+    try {
+      const doc = buildPdfDocument(values, groupedSelectedRows)
+      const blob = await pdf(doc).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      const stamp = new Date().toISOString().slice(0, 10)
+      const safeEntity = values.entity
+        .replace(/[^a-zA-Z0-9-_ ]/g, "")
+        .trim()
+        .replace(/\s+/g, "-")
+      const entityPart = safeEntity || "entidad"
+      link.href = url
+      link.download = `informe-${stamp}-${entityPart}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      toast.success("PDF generado correctamente.", {
+        description: `${values.entity} • ${values.manager}`,
+      })
+    } catch (error) {
+      toast.error("No se pudo generar el PDF.")
+    }
+  }
+
   const onSubmit = form.handleSubmit(
-    (values) => {
-      if (selectedRows.length === 0) {
-        toast.error("Selecciona al menos un item antes de exportar.")
-        return
-      }
-      const missingDeadline = selectedRows.some(({ deadline }) => !deadline)
-      if (missingDeadline) {
-        toast.error("Selecciona el plazo para cada item.")
-        return
-      }
-
-      try {
-        const headers = buildCsvHeaders()
-        const rows = buildCsvRows(values, selectedRows)
-        const csv = stringifyCsv([headers, ...rows])
-        const stamp = new Date().toISOString().slice(0, 10)
-        const filename = `informe-${stamp}.csv`
-
-        triggerCsvDownload(csv, filename)
-        toast.success("CSV generado correctamente.", {
-          description: `${values.entity} • ${values.manager}`,
-        })
-      } catch (error) {
-        toast.error("No se pudo generar el CSV.")
-      }
+    async (values) => {
+      await handleExportPdf(values)
     },
     () => {
       toast.error("Completa los datos de cabecera para exportar.")
@@ -381,7 +475,7 @@ export default function Home() {
         <header className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <Badge className="bg-zinc-900 text-zinc-50">Publico</Badge>
-            <Badge variant="outline">CSV client-side</Badge>
+            <Badge variant="outline">PDF client-side</Badge>
             <Button asChild variant="outline" size="sm">
               <Link href="/login">Acceso admin</Link>
             </Button>
@@ -405,7 +499,7 @@ export default function Home() {
           <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
             <CardHeader className="space-y-2">
               <CardTitle>Datos de cabecera</CardTitle>
-              <CardDescription>Informacion general para el CSV.</CardDescription>
+              <CardDescription>Informacion general para el PDF.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <form className="space-y-5" onSubmit={onSubmit}>
@@ -652,7 +746,7 @@ export default function Home() {
                 Exportacion
               </p>
               <p className="text-lg font-semibold">
-                Lista para generar el archivo CSV.
+                Lista para generar el archivo PDF.
               </p>
             </div>
             <Button
@@ -661,7 +755,7 @@ export default function Home() {
               onClick={onSubmit}
             >
               <Download className="size-4" />
-              Exportar CSV
+              Exportar PDF
             </Button>
             <Button
               type="button"

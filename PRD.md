@@ -1,8 +1,8 @@
 # PRODUCT REQUIREMENTS DOCUMENT (PRD)
 
 ## 1. Project Overview
-Aplicación web para la gestión y generación de informes estandarizados en formato CSV.
-El sistema permite a los **Administradores** configurar un catálogo de ítems jerarquizados (Comisiones, Instrucciones, Materias, etc.) y permite a **Usuarios Anónimos** generar archivos CSV seleccionando estos ítems e introduciendo metadatos de gestión (Entidad, Gestor, Plazo).
+Aplicación web para la gestión y generación de informes estandarizados en formato PDF.
+El sistema permite a los **Administradores** configurar un catálogo de ítems jerarquizados (Comisiones, Instrucciones, Materias, etc.) y permite a **Usuarios Anónimos** generar archivos PDF seleccionando estos ítems e introduciendo metadatos de gestión (Entidad, Gestor, Plazo).
 
 ## 2. User Roles
 
@@ -17,7 +17,7 @@ El sistema permite a los **Administradores** configurar un catálogo de ítems j
 - **Permisos:**
   - Visualizar (Leer) los ítems configurados.
   - Filtrar ítems por jerarquía.
-  - Generar y descargar el archivo CSV final.
+  - Generar y descargar el archivo PDF final.
   - **Restricción:** No puede modificar la base de datos, solo leer para construir su archivo local.
 
 ## 3. Core Features (MVP)
@@ -43,9 +43,8 @@ El sistema permite a los **Administradores** configurar un catálogo de ítems j
   - Exportar el estado del informe a JSON local (sin persistencia en BBDD).
   - Importar un borrador JSON para continuar editando.
 - **Motor de Exportación:**
-  - Generación de CSV en el cliente (Client-side).
-  - Formato: 1 fila por item_objective con las columnas:
-    Entidad, Gestor, Comision, Instruccion, Materia, Submateria, Linea de Trabajo, Objetivo, Objetivo 2, Observaciones, Plazo
+  - Generación de PDF en el cliente (Client-side).
+  - El PDF mantiene la agrupacion por instruccion e incluye observaciones y plazo.
 
 ## 4. Database Schema (Supabase)
 
@@ -60,7 +59,7 @@ El sistema permite a los **Administradores** configurar un catálogo de ítems j
 
 ### View de lectura (plana)
 
-- `v_items_export` con columnas para UI/CSV:
+- `v_items_export` con columnas para UI/PDF:
   - item_uuid, item_code, title, status, year
   - instruction_uuid, instruction, commission
   - matter, submatter
@@ -81,13 +80,13 @@ Notas:
 
 ## 5. Site Map & Routing
 
-- `src/app/page.tsx` -> **Vista Pública.** Formulario de entrada (Entidad/Gestor) + Selección de Ítems + Botón "Exportar CSV".
+- `src/app/page.tsx` -> **Vista Pública.** Formulario de entrada (Entidad/Gestor) + Selección de Ítems + Botón "Exportar PDF".
 - `src/app/login/page.tsx` -> Formulario de acceso para admins.
 - `src/app/admin/dashboard/page.tsx` -> **Vista Privada.** CRUD de `items_objetivo`.
 
 ## 6. UI/UX Guidelines (shadcn/ui)
 
 - **Input:** Formularios limpios usando `react-hook-form` + `zod`.
-- **Feedback:** `Toaster` para confirmar guardado de ítems o generación de CSV.
+- **Feedback:** `Toaster` para confirmar guardado de ítems o generación de PDF.
 - **Data Display:** `Table` component para el Admin Dashboard. `Card` o `Checkbox` list para la selección pública.
 - **Icons:** Lucide React para acciones (Download, Edit, Trash, Plus).
