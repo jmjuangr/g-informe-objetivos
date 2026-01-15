@@ -28,7 +28,7 @@ const normalizeObjectiveItem = (item: ItemsExportRecord): ObjectiveItem | null =
     matter: item.matter ?? null,
     submatter: item.submatter ?? null,
     work_line: item.work_line ?? null,
-    work_line_id: item.work_line_uuid ?? null,
+    work_line_id: item.work_line_id ?? null,
     item_objective: item.title ?? null,
     item_objective_2: null,
     status: item.status ?? null,
@@ -105,8 +105,8 @@ export const fetchItemsForInstructionAndWorkLine = async (
   const { data, error } = await supabase
     .from("v_items_export")
     .select("*")
-    .eq("instruction_uuid", instructionId)
-    .eq("work_line_uuid", workLineId)
+    .eq("instruction_id", instructionId)
+    .eq("work_line_id", workLineId)
     .or("status.is.null,status.neq.ELIMINAR")
     .order("title", { ascending: true })
 

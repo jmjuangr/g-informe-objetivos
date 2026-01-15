@@ -55,12 +55,12 @@ select
   items.title,
   items.status,
   items.year,
-  instructions.id as instruction_uuid,
+  instructions.id as instruction_id,
   instructions.name as instruction,
   commissions.name as commission,
   matters.name as matter,
   submatters.name as submatter,
-  work_lines.id as work_line_uuid,
+  work_lines.id as work_line_id,
   work_lines.code as work_line_code,
   work_lines.display_name as work_line
 from public.items_objetivo items

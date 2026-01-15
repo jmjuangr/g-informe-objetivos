@@ -84,12 +84,12 @@ export type ItemsExportRecord = {
   title: string | null
   status: string | null
   year: number | null
-  instruction_uuid: string
+  instruction_id: string
   instruction: string | null
   commission: string | null
   matter: string | null
   submatter: string | null
-  work_line_uuid: string | null
+  work_line_id: string | null
   work_line_code: string | null
   work_line: string | null
 }
