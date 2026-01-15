@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { Download, Filter } from "lucide-react"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -43,6 +43,23 @@ const deadlineOptions = [
   "Cuarto trimestre",
   "Año completo",
 ] as const
+
+type DraftItem = {
+  item: ObjectiveItem
+  deadline: string
+  observations: string
+}
+
+type DraftPayload = {
+  version: 1
+  metadata: {
+    entity: string
+    manager: string
+  }
+  items: DraftItem[]
+}
+
+const DRAFT_VERSION = 1
 
 type MockObjectiveItem = ObjectiveItem & {
   instruction_id: string
@@ -121,6 +138,7 @@ export default function Home() {
   const [selectedItems, setSelectedItems] = useState<
     Record<string, { item: ObjectiveItem; deadline: string; observations: string }>
   >({})
+  const draftInputRef = useRef<HTMLInputElement | null>(null)
 
   const mockInstructionOptions = useMemo(() => {
     const map = new Map<string, { label: string; commission: string | null }>()
@@ -251,6 +269,68 @@ export default function Home() {
 
   const handleClearSelection = () => {
     setSelectedItems({})
+  }
+
+  const handleExportDraft = () => {
+    const values = form.getValues()
+    const payload: DraftPayload = {
+      version: DRAFT_VERSION,
+      metadata: {
+        entity: values.entity,
+        manager: values.manager,
+      },
+      items: selectedRows,
+    }
+
+    const json = JSON.stringify(payload, null, 2)
+    const blob = new Blob([json], { type: "application/json;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    const stamp = new Date().toISOString().slice(0, 10)
+    link.href = url
+    link.download = `borrador-informe-${stamp}.json`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+    toast.success("Borrador exportado.")
+  }
+
+  const handleImportDraft = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result)) as DraftPayload
+        if (parsed.version !== DRAFT_VERSION || !Array.isArray(parsed.items)) {
+          toast.error("El borrador no tiene un formato valido.")
+          return
+        }
+
+        form.setValue("entity", parsed.metadata?.entity ?? "")
+        form.setValue("manager", parsed.metadata?.manager ?? "")
+        setSelectedItems(() => {
+          const next: Record<
+            string,
+            { item: ObjectiveItem; deadline: string; observations: string }
+          > = {}
+          parsed.items.forEach((row) => {
+            if (!row?.item?.id) return
+            next[row.item.id] = {
+              item: row.item,
+              deadline: row.deadline ?? "",
+              observations: row.observations ?? "",
+            }
+          })
+          return next
+        })
+        setSelectedInstructionId("")
+        setSelectedWorkLineId("")
+        toast.success("Borrador importado.")
+      } catch (error) {
+        toast.error("No se pudo importar el borrador.")
+      }
+    }
+    reader.readAsText(file)
   }
 
   const onSubmit = form.handleSubmit(
@@ -572,6 +652,37 @@ export default function Home() {
             >
               <Download className="size-4" />
               Exportar CSV
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2 border-white/30 text-white hover:bg-white/10"
+              onClick={handleExportDraft}
+            >
+              Guardar borrador
+            </Button>
+            <input
+              ref={draftInputRef}
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) {
+                  handleImportDraft(file)
+                }
+                if (draftInputRef.current) {
+                  draftInputRef.current.value = ""
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2 border-white/30 text-white hover:bg-white/10"
+              onClick={() => draftInputRef.current?.click()}
+            >
+              Importar borrador
             </Button>
           </CardContent>
         </Card>

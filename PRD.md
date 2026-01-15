@@ -39,6 +39,9 @@ El sistema permite a los **Administradores** configurar un catálogo de ítems j
   - Debajo se muestra la tabla de items seleccionados con boton "Quitar".
   - Cada item_objective seleccionado debe tener un Plazo (Primer trimestre, Segundo trimestre, Tercer trimestre, Cuarto trimestre, Ano completo).
   - Los item_objective se van acumulando en el informe, para luego exportarse.
+- **Borradores locales (client-side):**
+  - Exportar el estado del informe a JSON local (sin persistencia en BBDD).
+  - Importar un borrador JSON para continuar editando.
 - **Motor de Exportación:**
   - Generación de CSV en el cliente (Client-side).
   - Formato: 1 fila por item_objective con las columnas:
