@@ -204,6 +204,17 @@ export default function Home() {
   }, [objectiveItems, selectedIds])
 
   const selectedRows = useMemo(() => Object.values(selectedItems), [selectedItems])
+  const groupedSelectedRows = useMemo(() => {
+    const map = new Map<string, typeof selectedRows>()
+    selectedRows.forEach((row) => {
+      const key = row.item.instruction || "Sin instruccion"
+      if (!map.has(key)) {
+        map.set(key, [])
+      }
+      map.get(key)?.push(row)
+    })
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [selectedRows])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -475,51 +486,58 @@ export default function Home() {
                       <span>Año</span>
                       <span>Accion</span>
                     </div>
-                    {selectedRows.map(({ item, deadline }) => (
-                      <div
-                        key={item.id}
-                        className="grid grid-cols-[1.6fr_1.2fr_1fr_0.5fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
-                      >
-                        <div>
-                          <div className="font-medium text-zinc-900">
-                            {item.item_objective ?? "Sin objetivo"}
-                          </div>
-                          <div className="text-xs text-zinc-500">
-                            {item.instruction} · {item.work_line ?? "Sin linea"}
-                          </div>
+                    {groupedSelectedRows.map(([instruction, rows]) => (
+                      <div key={instruction}>
+                        <div className="border-b border-zinc-200/80 bg-zinc-100 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                          {instruction}
                         </div>
-                        <Select
-                          value={deadline}
-                          onValueChange={(value) =>
-                            setSelectedItems((prev) => ({
-                              ...prev,
-                              [item.id]: { ...prev[item.id], deadline: value },
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Plazo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {deadlineOptions.map((option) => (
-                              <SelectItem key={option} value={option}>
-                                {option}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <div className="text-xs text-zinc-600">
-                          {item.status ?? "Sin estado"}
-                        </div>
-                        <div className="text-xs text-zinc-600">{item.year}</div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleRemoveItem(item.id)}
-                        >
-                          Quitar
-                        </Button>
+                        {rows.map(({ item, deadline }) => (
+                          <div
+                            key={item.id}
+                            className="grid grid-cols-[1.6fr_1.2fr_1fr_0.5fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
+                          >
+                            <div>
+                              <div className="font-medium text-zinc-900">
+                                {item.item_objective ?? "Sin objetivo"}
+                              </div>
+                              <div className="text-xs text-zinc-500">
+                                {item.work_line ?? "Sin linea"}
+                              </div>
+                            </div>
+                            <Select
+                              value={deadline}
+                              onValueChange={(value) =>
+                                setSelectedItems((prev) => ({
+                                  ...prev,
+                                  [item.id]: { ...prev[item.id], deadline: value },
+                                }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Plazo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {deadlineOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <div className="text-xs text-zinc-600">
+                              {item.status ?? "Sin estado"}
+                            </div>
+                            <div className="text-xs text-zinc-600">{item.year}</div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleRemoveItem(item.id)}
+                            >
+                              Quitar
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
