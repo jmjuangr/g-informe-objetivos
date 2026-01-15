@@ -300,7 +300,7 @@ export default function Home() {
           )}
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[1.05fr_1.45fr]">
+        <div className="grid gap-8">
           <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
             <CardHeader className="space-y-2">
               <CardTitle>Datos de cabecera</CardTitle>
