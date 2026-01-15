@@ -273,10 +273,15 @@ export default function Home() {
 
   const handleExportDraft = () => {
     const values = form.getValues()
+    const entity = values.entity.trim()
+    if (!entity) {
+      toast.error("Completa la entidad antes de exportar el borrador.")
+      return
+    }
     const payload: DraftPayload = {
       version: DRAFT_VERSION,
       metadata: {
-        entity: values.entity,
+        entity,
         manager: values.manager,
       },
       items: selectedRows,
@@ -287,8 +292,13 @@ export default function Home() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     const stamp = new Date().toISOString().slice(0, 10)
+    const safeEntity = entity
+      .replace(/[^a-zA-Z0-9-_ ]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+    const entityPart = safeEntity || "entidad"
     link.href = url
-    link.download = `borrador-informe-${stamp}.json`
+    link.download = `borrador-informe-${stamp}-${entityPart}.json`
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -656,7 +666,7 @@ export default function Home() {
             <Button
               type="button"
               variant="outline"
-              className="gap-2 border-white/30 text-white hover:bg-white/10"
+              className="gap-2 bg-white text-zinc-900 hover:bg-zinc-100"
               onClick={handleExportDraft}
             >
               Guardar borrador
@@ -679,7 +689,7 @@ export default function Home() {
             <Button
               type="button"
               variant="outline"
-              className="gap-2 border-white/30 text-white hover:bg-white/10"
+              className="gap-2 bg-white text-zinc-900 hover:bg-zinc-100"
               onClick={() => draftInputRef.current?.click()}
             >
               Importar borrador
