@@ -47,10 +47,17 @@ export const fetchInstructions = async (): Promise<InstructionOption[]> => {
     throw error
   }
 
-  return (data ?? []).map((item) => ({
-    id: item.id as string,
-    label: item.name as string,
-    commission: (item as { commission?: { name?: string } }).commission?.name ?? null,
+  const rows =
+    (data as Array<{
+      id: string
+      name: string
+      commission?: { name?: string } | null
+    }>) ?? []
+
+  return rows.map((item) => ({
+    id: item.id,
+    label: item.name,
+    commission: item.commission?.name ?? null,
   }))
 }
 
