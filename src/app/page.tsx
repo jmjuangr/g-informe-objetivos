@@ -11,6 +11,7 @@ import { Document, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -176,6 +177,7 @@ export default function Home() {
     Record<string, { item: ObjectiveItem; deadline: string; observations: string }>
   >({})
   const [hasInitializedSelection, setHasInitializedSelection] = useState(false)
+  const [instructionFilters, setInstructionFilters] = useState<string[]>([])
   const draftInputRef = useRef<HTMLInputElement | null>(null)
 
   const mockObjectiveItems = useMemo(
@@ -227,9 +229,27 @@ export default function Home() {
       )
     })
   }, [selectedItems])
+  const selectedIds = useMemo(() => Object.keys(selectedItems), [selectedItems])
+  const availableItems = useMemo(() => {
+    return allObjectiveItems.filter((item) => !selectedIds.includes(item.id))
+  }, [allObjectiveItems, selectedIds])
+  const instructionOptions = useMemo(() => {
+    const set = new Set<string>()
+    allObjectiveItems.forEach((item) => {
+      if (item.instruction) {
+        set.add(item.instruction)
+      }
+    })
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [allObjectiveItems])
+  const filteredSelectedRows = useMemo(() => {
+    if (instructionFilters.length === 0) return selectedRows
+    const active = new Set(instructionFilters)
+    return selectedRows.filter((row) => active.has(row.item.instruction))
+  }, [instructionFilters, selectedRows])
   const groupedSelectedRows = useMemo(() => {
     const map = new Map<string, typeof selectedRows>()
-    selectedRows.forEach((row) => {
+    filteredSelectedRows.forEach((row) => {
       const key = row.item.instruction || "Sin instruccion"
       if (!map.has(key)) {
         map.set(key, [])
@@ -237,7 +257,7 @@ export default function Home() {
       map.get(key)?.push(row)
     })
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [selectedRows])
+  }, [filteredSelectedRows])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -251,6 +271,12 @@ export default function Home() {
     setSelectedItems((prev) => {
       const { [id]: _, ...rest } = prev
       return rest
+    })
+  }
+  const handleAddItem = (item: ObjectiveItem) => {
+    setSelectedItems((prev) => {
+      if (prev[item.id]) return prev
+      return { ...prev, [item.id]: { item, deadline: "", observations: "" } }
     })
   }
 
@@ -489,11 +515,11 @@ export default function Home() {
           <div className="space-y-6">
             <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
               <CardHeader className="space-y-2">
-                <CardTitle>Items del informe</CardTitle>
+                <CardTitle>Items disponibles</CardTitle>
                 <CardDescription>
                   {itemsLoading
                     ? "Cargando catalogo..."
-                    : `${selectedRows.length} de ${allObjectiveItems.length} items seleccionados`}
+                    : `${availableItems.length} disponibles`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -502,6 +528,122 @@ export default function Home() {
                     Error al cargar items: {itemsError.message}
                   </div>
                 )}
+                {availableItems.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-500">
+                    No hay items disponibles. Todo el catalogo esta incluido.
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-zinc-200/80">
+                    <div className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
+                      <span>Instruccion</span>
+                      <span>Linea de trabajo</span>
+                      <span>Objetivo de evaluacion</span>
+                      <span>ID Objetivo</span>
+                      <span>Accion</span>
+                    </div>
+                    {availableItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
+                      >
+                        <div>
+                          <div className="font-medium text-zinc-900">
+                            {item.instruction}
+                          </div>
+                          <div className="text-xs text-zinc-500">
+                            {item.matter} · {item.submatter}
+                          </div>
+                        </div>
+                        <div className="text-xs text-zinc-600">
+                          {item.work_line ?? "Sin linea"}
+                        </div>
+                        <div className="text-xs text-zinc-600">
+                          {item.item_objective ?? "Sin objetivo"}
+                        </div>
+                        <div className="text-xs text-zinc-500">
+                          {item.item_id ?? "Sin ID"}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleAddItem(item)}
+                        >
+                          Añadir
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
+              <CardHeader className="space-y-2">
+                <CardTitle>Filtro por instruccion</CardTitle>
+                <CardDescription>
+                  Selecciona una o varias instrucciones para filtrar el informe.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setInstructionFilters([])}
+                  >
+                    Eliminar filtros
+                  </Button>
+                  <Badge variant="outline">
+                    {instructionFilters.length === 0
+                      ? "Sin filtros"
+                      : `${instructionFilters.length} activas`}
+                  </Badge>
+                </div>
+                {instructionOptions.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-500">
+                    No hay instrucciones disponibles.
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {instructionOptions.map((instruction) => {
+                      const checked = instructionFilters.includes(instruction)
+                      return (
+                        <label
+                          key={instruction}
+                          className="flex items-start gap-2 rounded-md border border-zinc-200 px-3 py-2 text-sm"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(value) => {
+                              setInstructionFilters((prev) => {
+                                if (value) {
+                                  return prev.includes(instruction)
+                                    ? prev
+                                    : [...prev, instruction]
+                                }
+                                return prev.filter((item) => item !== instruction)
+                              })
+                            }}
+                          />
+                          <span className="text-zinc-700">{instruction}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
+              <CardHeader className="space-y-2">
+                <CardTitle>Items del informe</CardTitle>
+                <CardDescription>
+                  {itemsLoading
+                    ? "Cargando catalogo..."
+                    : `${filteredSelectedRows.length} de ${selectedRows.length} items seleccionados`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" variant="outline" onClick={handleRestoreAll}>
                     Restaurar todo
@@ -511,9 +653,11 @@ export default function Home() {
                   </Button>
                   <Badge variant="outline">{selectedRows.length} seleccionados</Badge>
                 </div>
-                {selectedRows.length === 0 ? (
+                {filteredSelectedRows.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-500">
-                    No hay items en el informe.
+                    {selectedRows.length === 0
+                      ? "No hay items en el informe."
+                      : "No hay items que coincidan con los filtros."}
                   </div>
                 ) : (
                   <div className="rounded-lg border border-zinc-200/80">
