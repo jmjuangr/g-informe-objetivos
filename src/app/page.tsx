@@ -191,7 +191,7 @@ const InstructionFilter = ({
       : `${selectedCount} seleccionadas`
 
   return (
-    <div className="space-y-2">
+    <div className="relative z-20 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-zinc-600">{title}</p>
         <Button
@@ -210,7 +210,7 @@ const InstructionFilter = ({
             <span>{label}</span>
             <ChevronDown className="size-4 text-zinc-400" />
           </summary>
-          <div className="absolute left-0 z-10 mt-2 w-72 rounded-md border border-zinc-200 bg-white p-2 shadow-lg">
+          <div className="absolute left-0 z-50 mt-2 w-72 rounded-md border border-zinc-200 bg-white p-2 shadow-lg">
             {options.length === 0 ? (
               <div className="px-2 py-3 text-xs text-zinc-500">
                 No hay instrucciones disponibles.
@@ -608,7 +608,7 @@ export default function Home() {
           </Card>
 
           <div className="space-y-6">
-            <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
+            <Card className="relative z-10 border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
               <CardHeader className="space-y-2">
                 <CardTitle>Items disponibles</CardTitle>
                 <CardDescription>
