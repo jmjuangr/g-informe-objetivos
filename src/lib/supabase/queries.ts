@@ -133,6 +133,25 @@ export const fetchItemsExport = async (): Promise<ItemsExportRecord[]> => {
   return (data ?? []) as ItemsExportRecord[]
 }
 
+export const fetchAllObjectiveItems = async (): Promise<ObjectiveItem[]> => {
+  const supabase = getSupabaseBrowserClient()
+  const { data, error } = await supabase
+    .from("v_items_export")
+    .select("*")
+    .or("status.is.null,status.neq.ELIMINAR")
+    .order("instruction", { ascending: true })
+    .order("work_line", { ascending: true })
+    .order("title", { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? [])
+    .map((item) => normalizeObjectiveItem(item as ItemsExportRecord))
+    .filter((item): item is ObjectiveItem => Boolean(item))
+}
+
 export const fetchCommissions = async (): Promise<CommissionRecord[]> => {
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase

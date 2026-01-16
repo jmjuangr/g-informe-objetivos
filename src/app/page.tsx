@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
-import { Download, Filter } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Download } from "lucide-react"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -20,10 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
-import { useInstructions } from "@/hooks/use-instructions"
-import { useObjectiveItems } from "@/hooks/use-objective-items"
-import { useWorkLines } from "@/hooks/use-work-lines"
+import { useAllObjectiveItems } from "@/hooks/use-all-objective-items"
 import type { ObjectiveItem } from "@/lib/supabase/types"
 
 const formSchema = z.object({
@@ -175,95 +172,61 @@ export default function Home() {
   const hasSupabaseEnv =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY)
-  const [selectedInstructionId, setSelectedInstructionId] = useState("")
-  const [selectedWorkLineId, setSelectedWorkLineId] = useState("")
   const [selectedItems, setSelectedItems] = useState<
     Record<string, { item: ObjectiveItem; deadline: string; observations: string }>
   >({})
+  const [hasInitializedSelection, setHasInitializedSelection] = useState(false)
   const draftInputRef = useRef<HTMLInputElement | null>(null)
 
-  const mockInstructionOptions = useMemo(() => {
-    const map = new Map<string, { label: string; commission: string | null }>()
-    mockItems.forEach((item) => {
-      if (!map.has(item.instruction_id)) {
-        map.set(item.instruction_id, {
-          label: item.instruction,
-          commission: item.commission ?? null,
-        })
-      }
-    })
-    return Array.from(map.entries())
-      .map(([id, value]) => ({ id, label: value.label, commission: value.commission }))
-      .sort((a, b) => a.label.localeCompare(b.label))
-  }, [])
-
-  const mockWorkLineOptions = useMemo(() => {
-    if (!selectedInstructionId) return []
-    const map = new Map<string, { label: string; code: string | null }>()
-    mockItems.forEach((item) => {
-      if (item.instruction_id !== selectedInstructionId) return
-      if (!map.has(item.work_line_id)) {
-        map.set(item.work_line_id, {
-          label: item.work_line ?? "Sin linea",
-          code: null,
-        })
-      }
-    })
-    return Array.from(map.entries())
-      .map(([id, value]) => ({
-        id,
-        label: value.label,
-        code: value.code,
-        sort_order: null,
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label))
-  }, [selectedInstructionId])
-
-  const mockObjectiveItems = useMemo(() => {
-    if (!selectedInstructionId || !selectedWorkLineId) return []
-    return mockItems
-      .filter(
-        (item) =>
-          item.instruction_id === selectedInstructionId &&
-          item.work_line_id === selectedWorkLineId,
-      )
-      .map(({ instruction_id, ...rest }) => rest)
-  }, [selectedInstructionId, selectedWorkLineId])
+  const mockObjectiveItems = useMemo(
+    () => mockItems.map(({ instruction_id, ...rest }) => rest),
+    [],
+  )
+  const fallbackItems = useMemo(
+    () => (hasSupabaseEnv ? [] : mockObjectiveItems),
+    [hasSupabaseEnv, mockObjectiveItems],
+  )
 
   const {
-    data: instructions,
-    error: instructionsError,
-    loading: instructionsLoading,
-  } = useInstructions({
-    enabled: hasSupabaseEnv,
-    fallback: mockInstructionOptions,
-  })
-
-  const {
-    data: workLines,
-    error: workLinesError,
-    loading: workLinesLoading,
-  } = useWorkLines(selectedInstructionId, {
-    enabled: hasSupabaseEnv,
-    fallback: mockWorkLineOptions,
-  })
-
-  const {
-    data: objectiveItems,
+    data: allObjectiveItems,
     error: itemsError,
     loading: itemsLoading,
-  } = useObjectiveItems(selectedInstructionId, selectedWorkLineId, {
+  } = useAllObjectiveItems({
     enabled: hasSupabaseEnv,
-    fallback: mockObjectiveItems,
+    fallback: fallbackItems,
   })
 
-  const selectedIds = useMemo(() => Object.keys(selectedItems), [selectedItems])
+  useEffect(() => {
+    if (hasInitializedSelection) return
+    if (allObjectiveItems.length === 0) return
+    setSelectedItems(() => {
+      const next: Record<
+        string,
+        { item: ObjectiveItem; deadline: string; observations: string }
+      > = {}
+      allObjectiveItems.forEach((item) => {
+        next[item.id] = { item, deadline: "", observations: "" }
+      })
+      return next
+    })
+    setHasInitializedSelection(true)
+  }, [allObjectiveItems, hasInitializedSelection])
 
-  const availableItems = useMemo(() => {
-    return objectiveItems.filter((item) => !selectedIds.includes(item.id))
-  }, [objectiveItems, selectedIds])
-
-  const selectedRows = useMemo(() => Object.values(selectedItems), [selectedItems])
+  const selectedRows = useMemo(() => {
+    return Object.values(selectedItems).sort((a, b) => {
+      const instructionCompare = (a.item.instruction ?? "").localeCompare(
+        b.item.instruction ?? "",
+      )
+      if (instructionCompare !== 0) return instructionCompare
+      const workLineCompare = (a.item.work_line ?? "").localeCompare(
+        b.item.work_line ?? "",
+      )
+      if (workLineCompare !== 0) return workLineCompare
+      return (a.item.item_objective ?? "").localeCompare(
+        b.item.item_objective ?? "",
+      )
+    })
+  }, [selectedItems])
   const groupedSelectedRows = useMemo(() => {
     const map = new Map<string, typeof selectedRows>()
     selectedRows.forEach((row) => {
@@ -284,13 +247,6 @@ export default function Home() {
     },
   })
 
-  const handleAddItem = (item: ObjectiveItem) => {
-    setSelectedItems((prev) => {
-      if (prev[item.id]) return prev
-      return { ...prev, [item.id]: { item, deadline: "", observations: "" } }
-    })
-  }
-
   const handleRemoveItem = (id: string) => {
     setSelectedItems((prev) => {
       const { [id]: _, ...rest } = prev
@@ -298,19 +254,27 @@ export default function Home() {
     })
   }
 
-  const handleSelectAll = () => {
+  const handleRestoreAll = () => {
     setSelectedItems((prev) => {
-      const next = { ...prev }
-      availableItems.forEach((item) => {
-        if (next[item.id]) return
-        next[item.id] = { item, deadline: "", observations: "" }
+      const next: Record<
+        string,
+        { item: ObjectiveItem; deadline: string; observations: string }
+      > = {}
+      allObjectiveItems.forEach((item) => {
+        next[item.id] = prev[item.id] ?? {
+          item,
+          deadline: "",
+          observations: "",
+        }
       })
       return next
     })
+    setHasInitializedSelection(true)
   }
 
   const handleClearSelection = () => {
     setSelectedItems({})
+    setHasInitializedSelection(true)
   }
 
   const handleExportDraft = () => {
@@ -375,8 +339,7 @@ export default function Home() {
           })
           return next
         })
-        setSelectedInstructionId("")
-        setSelectedWorkLineId("")
+        setHasInitializedSelection(true)
         toast.success("Borrador importado.")
       } catch (error) {
         toast.error("No se pudo importar el borrador.")
@@ -484,8 +447,8 @@ export default function Home() {
             Generador de informes estandarizados
           </h1>
           <p className="max-w-2xl text-base text-zinc-600 md:text-lg">
-            Completa los metadatos, filtra el catalogo y selecciona los items que
-            formaran parte del informe.
+            Todo el catalogo esta preseleccionado. Quita los items que no quieras
+            incluir y completa los datos de cabecera para generar el PDF.
           </p>
           {!hasSupabaseEnv && (
             <p className="max-w-2xl text-sm text-zinc-500">
@@ -519,56 +482,6 @@ export default function Home() {
                     {...form.register("manager")}
                   />
                 </div>
-                <Separator />
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm font-medium text-zinc-600">
-                    <Filter className="size-4" />
-                    Seleccion de Instruccion y Linea de trabajo
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Instruccion</Label>
-                      <Select
-                        value={selectedInstructionId}
-                        onValueChange={(value) => {
-                          setSelectedInstructionId(value)
-                          setSelectedWorkLineId("")
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {instructions.map((option) => (
-                            <SelectItem key={option.id} value={option.id}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Linea de trabajo</Label>
-                      <Select
-                        value={selectedWorkLineId}
-                        onValueChange={setSelectedWorkLineId}
-                        disabled={!selectedInstructionId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {workLines.map((option) => (
-                            <SelectItem key={option.id} value={option.id}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
               </form>
             </CardContent>
           </Card>
@@ -576,90 +489,31 @@ export default function Home() {
           <div className="space-y-6">
             <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
               <CardHeader className="space-y-2">
-                <CardTitle>Items disponibles</CardTitle>
+                <CardTitle>Items del informe</CardTitle>
                 <CardDescription>
-                  {itemsLoading || instructionsLoading || workLinesLoading
+                  {itemsLoading
                     ? "Cargando catalogo..."
-                    : `${availableItems.length} disponibles`}
+                    : `${selectedRows.length} de ${allObjectiveItems.length} items seleccionados`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {(instructionsError || workLinesError || itemsError) && (
+                {itemsError && (
                   <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    Error al cargar items:{" "}
-                    {(itemsError ?? workLinesError ?? instructionsError)?.message}
+                    Error al cargar items: {itemsError.message}
                   </div>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="outline" onClick={handleSelectAll}>
-                    Agregar visibles
+                  <Button type="button" variant="outline" onClick={handleRestoreAll}>
+                    Restaurar todo
                   </Button>
                   <Button type="button" variant="ghost" onClick={handleClearSelection}>
-                    Limpiar seleccion
+                    Quitar todos
                   </Button>
-                  <Badge variant="outline">{selectedIds.length} seleccionados</Badge>
+                  <Badge variant="outline">{selectedRows.length} seleccionados</Badge>
                 </div>
-                <div className="rounded-lg border border-zinc-200/80">
-                  <div className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
-                    <span>Instruccion</span>
-                    <span>Linea de trabajo</span>
-                    <span>Objetivo de evaluacion</span>
-                    <span>ID Objetivo</span>
-                    <span>Accion</span>
-                  </div>
-                  {availableItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
-                    >
-                      <div>
-                        <div className="font-medium text-zinc-900">
-                          {item.instruction}
-                        </div>
-                        <div className="text-xs text-zinc-500">
-                          {item.matter} · {item.submatter}
-                        </div>
-                      </div>
-                      <div className="text-xs text-zinc-600">
-                        {item.work_line ?? "Sin linea"}
-                      </div>
-                      <div className="text-xs text-zinc-600">
-                        {item.item_objective ?? "Sin objetivo"}
-                      </div>
-                      <div className="text-xs text-zinc-500">
-                        {item.item_id ?? "Sin ID"}
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAddItem(item)}
-                      >
-                        Añadir
-                      </Button>
-                    </div>
-                  ))}
-                  {!itemsLoading && availableItems.length === 0 && (
-                    <div className="px-4 py-6 text-sm text-zinc-500">
-                      {!selectedInstructionId || !selectedWorkLineId
-                        ? "Selecciona instruccion y linea para ver items."
-                        : "No hay items disponibles para esta vista."}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
-              <CardHeader className="space-y-2">
-                <CardTitle>Items seleccionados</CardTitle>
-                <CardDescription>
-                  {selectedRows.length} items en el informe
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
                 {selectedRows.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-500">
-                    Aun no hay items seleccionados.
+                    No hay items en el informe.
                   </div>
                 ) : (
                   <div className="rounded-lg border border-zinc-200/80">
