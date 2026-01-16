@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Download } from "lucide-react"
+import { ChevronDown, Download } from "lucide-react"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -169,6 +169,89 @@ const mockItems: MockObjectiveItem[] = [
   },
 ]
 
+type InstructionFilterProps = {
+  title: string
+  options: string[]
+  value: string[]
+  onChange: (next: string[]) => void
+  onClear: () => void
+}
+
+const InstructionFilter = ({
+  title,
+  options,
+  value,
+  onChange,
+  onClear,
+}: InstructionFilterProps) => {
+  const selectedCount = value.length
+  const label =
+    selectedCount === 0
+      ? "Todas las instrucciones"
+      : `${selectedCount} seleccionadas`
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium text-zinc-600">{title}</p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onClear}
+          disabled={selectedCount === 0}
+        >
+          Eliminar filtros
+        </Button>
+      </div>
+      <div className="flex items-center gap-2">
+        <details className="relative">
+          <summary className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm">
+            <span>{label}</span>
+            <ChevronDown className="size-4 text-zinc-400" />
+          </summary>
+          <div className="absolute left-0 z-10 mt-2 w-72 rounded-md border border-zinc-200 bg-white p-2 shadow-lg">
+            {options.length === 0 ? (
+              <div className="px-2 py-3 text-xs text-zinc-500">
+                No hay instrucciones disponibles.
+              </div>
+            ) : (
+              <div className="max-h-64 overflow-auto">
+                {options.map((instruction) => {
+                  const checked = value.includes(instruction)
+                  return (
+                    <label
+                      key={instruction}
+                      className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-50"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(nextChecked) => {
+                          onChange(
+                            nextChecked
+                              ? value.includes(instruction)
+                                ? value
+                                : [...value, instruction]
+                              : value.filter((item) => item !== instruction),
+                          )
+                        }}
+                      />
+                      <span>{instruction}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </details>
+        <Badge variant="outline">
+          {selectedCount === 0 ? "Sin filtros" : `${selectedCount} activas`}
+        </Badge>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const hasSupabaseEnv =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
@@ -177,7 +260,12 @@ export default function Home() {
     Record<string, { item: ObjectiveItem; deadline: string; observations: string }>
   >({})
   const [hasInitializedSelection, setHasInitializedSelection] = useState(false)
-  const [instructionFilters, setInstructionFilters] = useState<string[]>([])
+  const [selectedInstructionFilters, setSelectedInstructionFilters] = useState<string[]>(
+    [],
+  )
+  const [availableInstructionFilters, setAvailableInstructionFilters] = useState<
+    string[]
+  >([])
   const draftInputRef = useRef<HTMLInputElement | null>(null)
 
   const mockObjectiveItems = useMemo(
@@ -242,11 +330,18 @@ export default function Home() {
     })
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [allObjectiveItems])
+  const filteredAvailableItems = useMemo(() => {
+    if (availableInstructionFilters.length === 0) return availableItems
+    const active = new Set(availableInstructionFilters)
+    return availableItems.filter((item) =>
+      item.instruction ? active.has(item.instruction) : false,
+    )
+  }, [availableInstructionFilters, availableItems])
   const filteredSelectedRows = useMemo(() => {
-    if (instructionFilters.length === 0) return selectedRows
-    const active = new Set(instructionFilters)
+    if (selectedInstructionFilters.length === 0) return selectedRows
+    const active = new Set(selectedInstructionFilters)
     return selectedRows.filter((row) => active.has(row.item.instruction))
-  }, [instructionFilters, selectedRows])
+  }, [selectedInstructionFilters, selectedRows])
   const groupedSelectedRows = useMemo(() => {
     const map = new Map<string, typeof selectedRows>()
     filteredSelectedRows.forEach((row) => {
@@ -519,7 +614,7 @@ export default function Home() {
                 <CardDescription>
                   {itemsLoading
                     ? "Cargando catalogo..."
-                    : `${availableItems.length} disponibles`}
+                    : `${filteredAvailableItems.length} disponibles`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -528,9 +623,18 @@ export default function Home() {
                     Error al cargar items: {itemsError.message}
                   </div>
                 )}
-                {availableItems.length === 0 ? (
+                <InstructionFilter
+                  title="Filtrar items disponibles por instruccion"
+                  options={instructionOptions}
+                  value={availableInstructionFilters}
+                  onChange={setAvailableInstructionFilters}
+                  onClear={() => setAvailableInstructionFilters([])}
+                />
+                {filteredAvailableItems.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-500">
-                    No hay items disponibles. Todo el catalogo esta incluido.
+                    {availableItems.length === 0
+                      ? "No hay items disponibles. Todo el catalogo esta incluido."
+                      : "No hay items disponibles que coincidan con los filtros."}
                   </div>
                 ) : (
                   <div className="rounded-lg border border-zinc-200/80">
@@ -541,7 +645,7 @@ export default function Home() {
                       <span>ID Objetivo</span>
                       <span>Accion</span>
                     </div>
-                    {availableItems.map((item) => (
+                    {filteredAvailableItems.map((item) => (
                       <div
                         key={item.id}
                         className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
@@ -579,63 +683,6 @@ export default function Home() {
 
             <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
               <CardHeader className="space-y-2">
-                <CardTitle>Filtro por instruccion</CardTitle>
-                <CardDescription>
-                  Selecciona una o varias instrucciones para filtrar el informe.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setInstructionFilters([])}
-                  >
-                    Eliminar filtros
-                  </Button>
-                  <Badge variant="outline">
-                    {instructionFilters.length === 0
-                      ? "Sin filtros"
-                      : `${instructionFilters.length} activas`}
-                  </Badge>
-                </div>
-                {instructionOptions.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-500">
-                    No hay instrucciones disponibles.
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {instructionOptions.map((instruction) => {
-                      const checked = instructionFilters.includes(instruction)
-                      return (
-                        <label
-                          key={instruction}
-                          className="flex items-start gap-2 rounded-md border border-zinc-200 px-3 py-2 text-sm"
-                        >
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(value) => {
-                              setInstructionFilters((prev) => {
-                                if (value) {
-                                  return prev.includes(instruction)
-                                    ? prev
-                                    : [...prev, instruction]
-                                }
-                                return prev.filter((item) => item !== instruction)
-                              })
-                            }}
-                          />
-                          <span className="text-zinc-700">{instruction}</span>
-                        </label>
-                      )
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-zinc-200/80 bg-white/80 shadow-sm backdrop-blur">
-              <CardHeader className="space-y-2">
                 <CardTitle>Items del informe</CardTitle>
                 <CardDescription>
                   {itemsLoading
@@ -644,6 +691,13 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <InstructionFilter
+                  title="Filtrar items del informe por instruccion"
+                  options={instructionOptions}
+                  value={selectedInstructionFilters}
+                  onChange={setSelectedInstructionFilters}
+                  onClear={() => setSelectedInstructionFilters([])}
+                />
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" variant="outline" onClick={handleRestoreAll}>
                     Restaurar todo
