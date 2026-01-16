@@ -97,6 +97,9 @@ const pdfStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 600,
   },
+  rowDetails: {
+    marginTop: 2,
+  },
   rowLine: {
     fontSize: 10,
     color: "#374151",
@@ -509,13 +512,12 @@ export default function Home() {
                   <Text style={pdfStyles.rowTitle}>
                     {item.item_objective ?? "Sin objetivo"}
                   </Text>
-                  <Text style={pdfStyles.rowLine}>
-                    Linea: {item.work_line ?? "Sin linea"}
-                  </Text>
-                  <Text style={pdfStyles.rowMeta}>
-                    Observaciones: {observations || "-"}
-                  </Text>
-                  <Text style={pdfStyles.rowMeta}>Plazo: {deadline}</Text>
+                  <View style={pdfStyles.rowDetails}>
+                    <Text style={pdfStyles.rowMeta}>Plazo: {deadline}</Text>
+                    <Text style={pdfStyles.rowMeta}>
+                      Observaciones: {observations || "-"}
+                    </Text>
+                  </View>
                 </View>
               ))}
             </View>
@@ -528,11 +530,6 @@ export default function Home() {
   const handleExportPdf = async (values: z.infer<typeof formSchema>) => {
     if (selectedRows.length === 0) {
       toast.error("Selecciona al menos un item antes de exportar.")
-      return
-    }
-    const missingDeadline = selectedRows.some(({ deadline }) => !deadline)
-    if (missingDeadline) {
-      toast.error("Selecciona el plazo para cada item.")
       return
     }
 
