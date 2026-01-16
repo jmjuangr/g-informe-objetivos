@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -133,6 +134,9 @@ export default function LoginPage() {
               {isLoading ? "Ingresando..." : "Entrar"}
             </Button>
           </form>
+          <Button asChild variant="ghost" className="w-full">
+            <Link href="/">Volver al inicio publico</Link>
+          </Button>
         </CardContent>
       </Card>
     </div>

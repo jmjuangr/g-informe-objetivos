@@ -15,6 +15,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -337,6 +343,17 @@ export default function Home() {
       item.instruction ? active.has(item.instruction) : false,
     )
   }, [availableInstructionFilters, availableItems])
+  const groupedAvailableItems = useMemo(() => {
+    const map = new Map<string, ObjectiveItem[]>()
+    filteredAvailableItems.forEach((item) => {
+      const key = item.instruction || "Sin instruccion"
+      if (!map.has(key)) {
+        map.set(key, [])
+      }
+      map.get(key)?.push(item)
+    })
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [filteredAvailableItems])
   const filteredSelectedRows = useMemo(() => {
     if (selectedInstructionFilters.length === 0) return selectedRows
     const active = new Set(selectedInstructionFilters)
@@ -637,46 +654,64 @@ export default function Home() {
                       : "No hay items disponibles que coincidan con los filtros."}
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-zinc-200/80">
-                    <div className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
-                      <span>Instruccion</span>
-                      <span>Linea de trabajo</span>
-                      <span>Objetivo de evaluacion</span>
-                      <span>ID Objetivo</span>
-                      <span>Accion</span>
-                    </div>
-                    {filteredAvailableItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
+                  <Accordion type="multiple" className="space-y-3">
+                    {groupedAvailableItems.map(([instruction, items], index) => (
+                      <AccordionItem
+                        key={`${instruction}-${index}`}
+                        value={`available-${index}`}
+                        className="rounded-lg border border-zinc-200/80 bg-white/60"
                       >
-                        <div>
-                          <div className="font-medium text-zinc-900">
-                            {item.instruction}
+                        <AccordionTrigger className="px-3 py-2 text-sm font-semibold text-zinc-700 hover:no-underline">
+                          <span className="flex w-full items-center justify-between pr-3">
+                            <span>{instruction}</span>
+                            <Badge variant="outline">{items.length}</Badge>
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-3 pb-3">
+                          <div className="rounded-lg border border-zinc-200/80">
+                            <div className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
+                              <span>Instruccion</span>
+                              <span>Linea de trabajo</span>
+                              <span>Objetivo de evaluacion</span>
+                              <span>ID Objetivo</span>
+                              <span>Accion</span>
+                            </div>
+                            {items.map((item) => (
+                              <div
+                                key={item.id}
+                                className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
+                              >
+                                <div>
+                                  <div className="font-medium text-zinc-900">
+                                    {item.instruction}
+                                  </div>
+                                  <div className="text-xs text-zinc-500">
+                                    {item.matter} · {item.submatter}
+                                  </div>
+                                </div>
+                                <div className="text-xs text-zinc-600">
+                                  {item.work_line ?? "Sin linea"}
+                                </div>
+                                <div className="text-xs text-zinc-600">
+                                  {item.item_objective ?? "Sin objetivo"}
+                                </div>
+                                <div className="text-xs text-zinc-500">
+                                  {item.item_id ?? "Sin ID"}
+                                </div>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => handleAddItem(item)}
+                                >
+                                  Añadir
+                                </Button>
+                              </div>
+                            ))}
                           </div>
-                          <div className="text-xs text-zinc-500">
-                            {item.matter} · {item.submatter}
-                          </div>
-                        </div>
-                        <div className="text-xs text-zinc-600">
-                          {item.work_line ?? "Sin linea"}
-                        </div>
-                        <div className="text-xs text-zinc-600">
-                          {item.item_objective ?? "Sin objetivo"}
-                        </div>
-                        <div className="text-xs text-zinc-500">
-                          {item.item_id ?? "Sin ID"}
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleAddItem(item)}
-                        >
-                          Añadir
-                        </Button>
-                      </div>
+                        </AccordionContent>
+                      </AccordionItem>
                     ))}
-                  </div>
+                  </Accordion>
                 )}
               </CardContent>
             </Card>
@@ -714,77 +749,91 @@ export default function Home() {
                       : "No hay items que coincidan con los filtros."}
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-zinc-200/80">
-                    <div className="grid grid-cols-[1.6fr_1.1fr_1.4fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
-                      <span>Item</span>
-                      <span>Plazo</span>
-                      <span>Observaciones</span>
-                      <span>Accion</span>
-                    </div>
-                    {groupedSelectedRows.map(([instruction, rows]) => (
-                      <div key={instruction}>
-                        <div className="border-b border-zinc-200/80 bg-zinc-100 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
-                          {instruction}
-                        </div>
-                        {rows.map(({ item, deadline, observations }) => (
-                          <div
-                            key={item.id}
-                            className="grid grid-cols-[1.6fr_1.1fr_1.4fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
-                          >
-                            <div>
-                              <div className="font-medium text-zinc-900">
-                                {item.item_objective ?? "Sin objetivo"}
-                              </div>
-                              <div className="text-xs text-zinc-500">
-                                {item.work_line ?? "Sin linea"}
-                              </div>
+                  <Accordion type="multiple" className="space-y-3">
+                    {groupedSelectedRows.map(([instruction, rows], index) => (
+                      <AccordionItem
+                        key={`${instruction}-${index}`}
+                        value={`selected-${index}`}
+                        className="rounded-lg border border-zinc-200/80 bg-white/60"
+                      >
+                        <AccordionTrigger className="px-3 py-2 text-sm font-semibold uppercase tracking-wide text-zinc-600 hover:no-underline">
+                          <span className="flex w-full items-center justify-between pr-3">
+                            <span>{instruction}</span>
+                            <Badge variant="outline">{rows.length}</Badge>
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-3 pb-3">
+                          <div className="rounded-lg border border-zinc-200/80">
+                            <div className="grid grid-cols-[1.6fr_1.1fr_1.4fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
+                              <span>Item</span>
+                              <span>Plazo</span>
+                              <span>Observaciones</span>
+                              <span>Accion</span>
                             </div>
-                            <Select
-                              value={deadline}
-                              onValueChange={(value) =>
-                                setSelectedItems((prev) => ({
-                                  ...prev,
-                                  [item.id]: { ...prev[item.id], deadline: value },
-                                }))
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Plazo" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {deadlineOptions.map((option) => (
-                                  <SelectItem key={option} value={option}>
-                                    {option}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              value={observations}
-                              onChange={(event) =>
-                                setSelectedItems((prev) => ({
-                                  ...prev,
-                                  [item.id]: {
-                                    ...prev[item.id],
-                                    observations: event.target.value,
-                                  },
-                                }))
-                              }
-                              placeholder="Observaciones"
-                            />
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleRemoveItem(item.id)}
-                            >
-                              Quitar
-                            </Button>
+                            {rows.map(({ item, deadline, observations }) => (
+                              <div
+                                key={item.id}
+                                className="grid grid-cols-[1.6fr_1.1fr_1.4fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
+                              >
+                                <div>
+                                  <div className="font-medium text-zinc-900">
+                                    {item.item_objective ?? "Sin objetivo"}
+                                  </div>
+                                  <div className="text-xs text-zinc-500">
+                                    {item.work_line ?? "Sin linea"}
+                                  </div>
+                                </div>
+                                <Select
+                                  value={deadline}
+                                  onValueChange={(value) =>
+                                    setSelectedItems((prev) => ({
+                                      ...prev,
+                                      [item.id]: {
+                                        ...prev[item.id],
+                                        deadline: value,
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Plazo" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {deadlineOptions.map((option) => (
+                                      <SelectItem key={option} value={option}>
+                                        {option}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Input
+                                  value={observations}
+                                  onChange={(event) =>
+                                    setSelectedItems((prev) => ({
+                                      ...prev,
+                                      [item.id]: {
+                                        ...prev[item.id],
+                                        observations: event.target.value,
+                                      },
+                                    }))
+                                  }
+                                  placeholder="Observaciones"
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleRemoveItem(item.id)}
+                                >
+                                  Quitar
+                                </Button>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </AccordionContent>
+                      </AccordionItem>
                     ))}
-                  </div>
+                  </Accordion>
                 )}
               </CardContent>
             </Card>
