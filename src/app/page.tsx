@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import Link from "next/link"
-import { Document, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer"
+import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -69,6 +69,13 @@ const pdfStyles = StyleSheet.create({
   },
   header: {
     marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  logo: {
+    width: 140,
+    height: 37,
   },
   title: {
     fontSize: 16,
@@ -667,12 +674,12 @@ export default function Home() {
       <Document>
         <Page size="A4" orientation="landscape" style={pdfStyles.page}>
           <View style={pdfStyles.header}>
-            <Text style={pdfStyles.title}>Informe de objetivos</Text>
-            <Text style={pdfStyles.meta}>Entidad: {metadata.entity}</Text>
-            <Text style={pdfStyles.meta}>Gestor: {metadata.manager}</Text>
-            <Text style={pdfStyles.meta}>
-              Fecha: {new Date().toLocaleDateString()}
-            </Text>
+            <Image style={pdfStyles.logo} src="/Gestiona-RGB.png" />
+            <View>
+              <Text style={pdfStyles.title}>Informe de objetivos 2026</Text>
+              <Text style={pdfStyles.meta}>Entidad: {metadata.entity}</Text>
+              <Text style={pdfStyles.meta}>Gestor/a: {metadata.manager}</Text>
+            </View>
           </View>
           {groupedRows.map(([instruction, rows]) => (
             <View key={instruction} style={pdfStyles.section}>
@@ -685,12 +692,16 @@ export default function Home() {
                     </Text>
                   </View>
                   <View style={pdfStyles.rowDeadline}>
-                    <Text style={pdfStyles.rowMeta}>Plazo: {deadline}</Text>
+                    {deadline ? (
+                      <Text style={pdfStyles.rowMeta}>Plazo: {deadline}</Text>
+                    ) : null}
                   </View>
                   <View style={pdfStyles.rowObservations}>
-                    <Text style={pdfStyles.rowMeta}>
-                      Observaciones: {observations || ""}
-                    </Text>
+                    {observations ? (
+                      <Text style={pdfStyles.rowMeta}>
+                        Observaciones: {observations}
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
               ))}
