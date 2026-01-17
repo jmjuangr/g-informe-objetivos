@@ -757,14 +757,12 @@ export default function Home() {
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-12">
         <header className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
-            <Badge className="bg-zinc-900 text-zinc-50">Publico</Badge>
-            <Badge variant="outline">PDF client-side</Badge>
             <Button asChild variant="outline" size="sm">
               <Link href="/login">Acceso admin</Link>
             </Button>
           </div>
           <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
-            Generador de informes estandarizados
+            Generador de informes de objetivos
           </h1>
           <p className="max-w-2xl text-base text-zinc-600 md:text-lg">
             Selecciona los items que quieres incluir y completa los datos de
@@ -795,7 +793,7 @@ export default function Home() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="manager">Gestor</Label>
+                  <Label htmlFor="manager">Gestor/a</Label>
                   <Input
                     id="manager"
                     placeholder="Responsable"
@@ -1166,15 +1164,7 @@ export default function Home() {
         </div>
 
         <Card className="border-zinc-200/80 bg-zinc-900 text-zinc-50 shadow-lg">
-          <CardContent className="flex flex-col gap-4 py-6 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.2em] text-zinc-400">
-                Exportacion
-              </p>
-              <p className="text-lg font-semibold">
-                Lista para generar el archivo PDF.
-              </p>
-            </div>
+          <CardContent className="flex flex-col items-center justify-center gap-3 py-6 md:flex-row">
             <Button
               type="button"
               className="gap-2 bg-white text-zinc-900 hover:bg-zinc-100"
