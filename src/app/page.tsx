@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { ChevronDown, Download } from "lucide-react"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -190,29 +190,55 @@ const mockItems: MockObjectiveItem[] = [
   },
 ]
 
-type InstructionFilterProps = {
+type MultiSelectFilterProps = {
   title: string
   options: string[]
   value: string[]
   onChange: (next: string[]) => void
   onClear: () => void
+  placeholder: string
+  disabled?: boolean
 }
 
-const InstructionFilter = ({
+const MultiSelectFilter = ({
   title,
   options,
   value,
   onChange,
   onClear,
-}: InstructionFilterProps) => {
+  placeholder,
+  disabled = false,
+}: MultiSelectFilterProps) => {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const selectedCount = value.length
   const label =
     selectedCount === 0
-      ? "Todas las instrucciones"
+      ? placeholder
       : `${selectedCount} seleccionadas`
 
+  useEffect(() => {
+    if (!open) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!containerRef.current) return
+      if (!containerRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener("pointerdown", handlePointerDown)
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (disabled) {
+      setOpen(false)
+    }
+  }, [disabled])
+
   return (
-    <div className="relative z-20 space-y-2">
+    <div ref={containerRef} className="relative z-20 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-zinc-600">{title}</p>
         <Button
@@ -220,29 +246,37 @@ const InstructionFilter = ({
           variant="ghost"
           size="sm"
           onClick={onClear}
-          disabled={selectedCount === 0}
+          disabled={selectedCount === 0 || disabled}
         >
           Eliminar filtros
         </Button>
       </div>
       <div className="flex items-center gap-2">
-        <details className="relative">
-          <summary className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen((prev) => !prev)}
+            className="flex w-full min-w-[12rem] items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={disabled}
+            aria-expanded={open}
+            aria-haspopup="listbox"
+          >
             <span>{label}</span>
             <ChevronDown className="size-4 text-zinc-400" />
-          </summary>
-          <div className="absolute left-0 z-50 mt-2 w-72 rounded-md border border-zinc-200 bg-white p-2 shadow-lg">
+          </button>
+          {open && (
+            <div className="absolute left-0 z-50 mt-2 w-72 rounded-md border border-zinc-200 bg-white p-2 shadow-lg">
             {options.length === 0 ? (
               <div className="px-2 py-3 text-xs text-zinc-500">
-                No hay instrucciones disponibles.
+                No hay opciones disponibles.
               </div>
             ) : (
               <div className="max-h-64 overflow-auto">
-                {options.map((instruction) => {
-                  const checked = value.includes(instruction)
+                {options.map((option) => {
+                  const checked = value.includes(option)
                   return (
                     <label
-                      key={instruction}
+                      key={option}
                       className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-50"
                     >
                       <Checkbox
@@ -250,21 +284,22 @@ const InstructionFilter = ({
                         onCheckedChange={(nextChecked) => {
                           onChange(
                             nextChecked
-                              ? value.includes(instruction)
+                              ? value.includes(option)
                                 ? value
-                                : [...value, instruction]
-                              : value.filter((item) => item !== instruction),
+                                : [...value, option]
+                              : value.filter((item) => item !== option),
                           )
                         }}
                       />
-                      <span>{instruction}</span>
+                      <span>{option}</span>
                     </label>
                   )
                 })}
               </div>
             )}
-          </div>
-        </details>
+            </div>
+          )}
+        </div>
         <Badge variant="outline">
           {selectedCount === 0 ? "Sin filtros" : `${selectedCount} activas`}
         </Badge>
@@ -286,6 +321,12 @@ export default function Home() {
   const [availableInstructionFilters, setAvailableInstructionFilters] = useState<
     string[]
   >([])
+  const [selectedWorkLineFilters, setSelectedWorkLineFilters] = useState<string[]>(
+    [],
+  )
+  const [availableWorkLineFilters, setAvailableWorkLineFilters] = useState<string[]>(
+    [],
+  )
   const [availableChecked, setAvailableChecked] = useState<Set<string>>(
     () => new Set(),
   )
@@ -349,13 +390,30 @@ export default function Home() {
     })
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [allObjectiveItems])
-  const filteredAvailableItems = useMemo(() => {
+  const availableInstructionFilteredItems = useMemo(() => {
     if (availableInstructionFilters.length === 0) return availableItems
     const active = new Set(availableInstructionFilters)
     return availableItems.filter((item) =>
       item.instruction ? active.has(item.instruction) : false,
     )
   }, [availableInstructionFilters, availableItems])
+  const availableWorkLineOptions = useMemo(() => {
+    if (availableInstructionFilters.length === 0) return []
+    const set = new Set<string>()
+    availableInstructionFilteredItems.forEach((item) => {
+      if (item.work_line) {
+        set.add(item.work_line)
+      }
+    })
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [availableInstructionFilters.length, availableInstructionFilteredItems])
+  const filteredAvailableItems = useMemo(() => {
+    if (availableWorkLineFilters.length === 0) return availableInstructionFilteredItems
+    const active = new Set(availableWorkLineFilters)
+    return availableInstructionFilteredItems.filter((item) =>
+      item.work_line ? active.has(item.work_line) : false,
+    )
+  }, [availableInstructionFilteredItems, availableWorkLineFilters])
   const groupedAvailableItems = useMemo(() => {
     const map = new Map<string, ObjectiveItem[]>()
     filteredAvailableItems.forEach((item) => {
@@ -371,11 +429,28 @@ export default function Home() {
     entries.forEach(([, items]) => items.sort(compareObjectiveItems))
     return entries
   }, [filteredAvailableItems])
-  const filteredSelectedRows = useMemo(() => {
+  const selectedInstructionFilteredRows = useMemo(() => {
     if (selectedInstructionFilters.length === 0) return selectedRows
     const active = new Set(selectedInstructionFilters)
     return selectedRows.filter((row) => active.has(row.item.instruction))
   }, [selectedInstructionFilters, selectedRows])
+  const selectedWorkLineOptions = useMemo(() => {
+    if (selectedInstructionFilters.length === 0) return []
+    const set = new Set<string>()
+    selectedInstructionFilteredRows.forEach((row) => {
+      if (row.item.work_line) {
+        set.add(row.item.work_line)
+      }
+    })
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [selectedInstructionFilters.length, selectedInstructionFilteredRows])
+  const filteredSelectedRows = useMemo(() => {
+    if (selectedWorkLineFilters.length === 0) return selectedInstructionFilteredRows
+    const active = new Set(selectedWorkLineFilters)
+    return selectedInstructionFilteredRows.filter((row) =>
+      row.item.work_line ? active.has(row.item.work_line) : false,
+    )
+  }, [selectedInstructionFilteredRows, selectedWorkLineFilters])
   const groupedSelectedRows = useMemo(() => {
     const map = new Map<string, typeof selectedRows>()
     filteredSelectedRows.forEach((row) => {
@@ -387,6 +462,44 @@ export default function Home() {
     })
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
   }, [filteredSelectedRows])
+
+  useEffect(() => {
+    if (availableInstructionFilters.length === 0) {
+      if (availableWorkLineFilters.length > 0) {
+        setAvailableWorkLineFilters([])
+      }
+      return
+    }
+    if (availableWorkLineFilters.length === 0) return
+    const active = new Set(availableWorkLineOptions)
+    const next = availableWorkLineFilters.filter((line) => active.has(line))
+    if (next.length !== availableWorkLineFilters.length) {
+      setAvailableWorkLineFilters(next)
+    }
+  }, [
+    availableInstructionFilters.length,
+    availableWorkLineFilters,
+    availableWorkLineOptions,
+  ])
+
+  useEffect(() => {
+    if (selectedInstructionFilters.length === 0) {
+      if (selectedWorkLineFilters.length > 0) {
+        setSelectedWorkLineFilters([])
+      }
+      return
+    }
+    if (selectedWorkLineFilters.length === 0) return
+    const active = new Set(selectedWorkLineOptions)
+    const next = selectedWorkLineFilters.filter((line) => active.has(line))
+    if (next.length !== selectedWorkLineFilters.length) {
+      setSelectedWorkLineFilters(next)
+    }
+  }, [
+    selectedInstructionFilters.length,
+    selectedWorkLineFilters,
+    selectedWorkLineOptions,
+  ])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -698,13 +811,25 @@ export default function Home() {
                     Error al cargar items: {itemsError.message}
                   </div>
                 )}
-                <InstructionFilter
-                  title="Filtrar items disponibles por instruccion"
-                  options={instructionOptions}
-                  value={availableInstructionFilters}
-                  onChange={setAvailableInstructionFilters}
-                  onClear={() => setAvailableInstructionFilters([])}
-                />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <MultiSelectFilter
+                    title="Filtrar items disponibles por instruccion"
+                    options={instructionOptions}
+                    value={availableInstructionFilters}
+                    onChange={setAvailableInstructionFilters}
+                    onClear={() => setAvailableInstructionFilters([])}
+                    placeholder="Todas las instrucciones"
+                  />
+                  <MultiSelectFilter
+                    title="Filtrar items disponibles por linea de trabajo"
+                    options={availableWorkLineOptions}
+                    value={availableWorkLineFilters}
+                    onChange={setAvailableWorkLineFilters}
+                    onClear={() => setAvailableWorkLineFilters([])}
+                    placeholder="Todas las lineas"
+                    disabled={availableInstructionFilters.length === 0}
+                  />
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
@@ -756,7 +881,33 @@ export default function Home() {
                         <AccordionContent className="px-3 pb-3">
                           <div className="rounded-lg border border-zinc-200/80">
                             <div className="grid grid-cols-[auto_1.3fr_1fr_1.4fr_0.7fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
-                              <span className="sr-only">Seleccion</span>
+                              <Checkbox
+                                checked={
+                                  items.length === 0
+                                    ? false
+                                    : items.every((item) => availableChecked.has(item.id))
+                                      ? true
+                                      : items.some((item) => availableChecked.has(item.id))
+                                        ? "indeterminate"
+                                        : false
+                                }
+                                onCheckedChange={(checked) => {
+                                  const shouldCheck = checked === true
+                                  setAvailableChecked((prev) => {
+                                    const next = new Set(prev)
+                                    items.forEach((item) => {
+                                      if (shouldCheck) {
+                                        next.add(item.id)
+                                      } else {
+                                        next.delete(item.id)
+                                      }
+                                    })
+                                    return next
+                                  })
+                                }}
+                                aria-label="Seleccionar todos los items visibles"
+                                disabled={items.length === 0}
+                              />
                               <span>Instruccion</span>
                               <span>Linea de trabajo</span>
                               <span>Objetivo de evaluacion</span>
@@ -829,13 +980,25 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <InstructionFilter
-                  title="Filtrar items del informe por instruccion"
-                  options={instructionOptions}
-                  value={selectedInstructionFilters}
-                  onChange={setSelectedInstructionFilters}
-                  onClear={() => setSelectedInstructionFilters([])}
-                />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <MultiSelectFilter
+                    title="Filtrar items del informe por instruccion"
+                    options={instructionOptions}
+                    value={selectedInstructionFilters}
+                    onChange={setSelectedInstructionFilters}
+                    onClear={() => setSelectedInstructionFilters([])}
+                    placeholder="Todas las instrucciones"
+                  />
+                  <MultiSelectFilter
+                    title="Filtrar items del informe por linea de trabajo"
+                    options={selectedWorkLineOptions}
+                    value={selectedWorkLineFilters}
+                    onChange={setSelectedWorkLineFilters}
+                    onClear={() => setSelectedWorkLineFilters([])}
+                    placeholder="Todas las lineas"
+                    disabled={selectedInstructionFilters.length === 0}
+                  />
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
@@ -873,7 +1036,33 @@ export default function Home() {
                         <AccordionContent className="px-3 pb-3">
                           <div className="rounded-lg border border-zinc-200/80">
                             <div className="grid grid-cols-[auto_1.6fr_1.1fr_1.4fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
-                              <span className="sr-only">Seleccion</span>
+                              <Checkbox
+                                checked={
+                                  rows.length === 0
+                                    ? false
+                                    : rows.every((row) => selectedChecked.has(row.item.id))
+                                      ? true
+                                      : rows.some((row) => selectedChecked.has(row.item.id))
+                                        ? "indeterminate"
+                                        : false
+                                }
+                                onCheckedChange={(checked) => {
+                                  const shouldCheck = checked === true
+                                  setSelectedChecked((prev) => {
+                                    const next = new Set(prev)
+                                    rows.forEach((row) => {
+                                      if (shouldCheck) {
+                                        next.add(row.item.id)
+                                      } else {
+                                        next.delete(row.item.id)
+                                      }
+                                    })
+                                    return next
+                                  })
+                                }}
+                                aria-label="Seleccionar todos los items visibles"
+                                disabled={rows.length === 0}
+                              />
                               <span>Item</span>
                               <span>Plazo</span>
                               <span>Observaciones</span>
