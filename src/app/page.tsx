@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { ChevronDown, Download } from "lucide-react"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -268,13 +268,18 @@ export default function Home() {
   const [selectedItems, setSelectedItems] = useState<
     Record<string, { item: ObjectiveItem; deadline: string; observations: string }>
   >({})
-  const [hasInitializedSelection, setHasInitializedSelection] = useState(false)
   const [selectedInstructionFilters, setSelectedInstructionFilters] = useState<string[]>(
     [],
   )
   const [availableInstructionFilters, setAvailableInstructionFilters] = useState<
     string[]
   >([])
+  const [availableChecked, setAvailableChecked] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [selectedChecked, setSelectedChecked] = useState<Set<string>>(
+    () => new Set(),
+  )
   const draftInputRef = useRef<HTMLInputElement | null>(null)
 
   const mockObjectiveItems = useMemo(
@@ -295,22 +300,6 @@ export default function Home() {
     fallback: fallbackItems,
   })
 
-  useEffect(() => {
-    if (hasInitializedSelection) return
-    if (allObjectiveItems.length === 0) return
-    setSelectedItems(() => {
-      const next: Record<
-        string,
-        { item: ObjectiveItem; deadline: string; observations: string }
-      > = {}
-      allObjectiveItems.forEach((item) => {
-        next[item.id] = { item, deadline: "", observations: "" }
-      })
-      return next
-    })
-    setHasInitializedSelection(true)
-  }, [allObjectiveItems, hasInitializedSelection])
-
   const selectedRows = useMemo(() => {
     return Object.values(selectedItems).sort((a, b) => {
       const instructionCompare = (a.item.instruction ?? "").localeCompare(
@@ -330,6 +319,15 @@ export default function Home() {
   const availableItems = useMemo(() => {
     return allObjectiveItems.filter((item) => !selectedIds.includes(item.id))
   }, [allObjectiveItems, selectedIds])
+  const compareObjectiveItems = (a: ObjectiveItem, b: ObjectiveItem) => {
+    const instructionCompare = (a.instruction ?? "").localeCompare(
+      b.instruction ?? "",
+    )
+    if (instructionCompare !== 0) return instructionCompare
+    const workLineCompare = (a.work_line ?? "").localeCompare(b.work_line ?? "")
+    if (workLineCompare !== 0) return workLineCompare
+    return (a.item_objective ?? "").localeCompare(b.item_objective ?? "")
+  }
   const instructionOptions = useMemo(() => {
     const set = new Set<string>()
     allObjectiveItems.forEach((item) => {
@@ -355,7 +353,11 @@ export default function Home() {
       }
       map.get(key)?.push(item)
     })
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+    const entries = Array.from(map.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0]),
+    )
+    entries.forEach(([, items]) => items.sort(compareObjectiveItems))
+    return entries
   }, [filteredAvailableItems])
   const filteredSelectedRows = useMemo(() => {
     if (selectedInstructionFilters.length === 0) return selectedRows
@@ -387,35 +389,77 @@ export default function Home() {
       const { [id]: _, ...rest } = prev
       return rest
     })
+    setSelectedChecked((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
   }
   const handleAddItem = (item: ObjectiveItem) => {
     setSelectedItems((prev) => {
       if (prev[item.id]) return prev
       return { ...prev, [item.id]: { item, deadline: "", observations: "" } }
     })
+    setAvailableChecked((prev) => {
+      const next = new Set(prev)
+      next.delete(item.id)
+      return next
+    })
   }
 
   const handleRestoreAll = () => {
-    setSelectedItems((prev) => {
-      const next: Record<
-        string,
-        { item: ObjectiveItem; deadline: string; observations: string }
-      > = {}
-      allObjectiveItems.forEach((item) => {
-        next[item.id] = prev[item.id] ?? {
-          item,
-          deadline: "",
-          observations: "",
-        }
-      })
-      return next
-    })
-    setHasInitializedSelection(true)
+    setSelectedItems({})
+    setAvailableChecked(new Set())
+    setSelectedChecked(new Set())
   }
 
   const handleClearSelection = () => {
     setSelectedItems({})
-    setHasInitializedSelection(true)
+    setAvailableChecked(new Set())
+    setSelectedChecked(new Set())
+  }
+
+  const handleAddSelected = () => {
+    if (availableChecked.size === 0) return
+    const availableMap = new Map(
+      availableItems.map((item) => [item.id, item]),
+    )
+    setSelectedItems((prev) => {
+      const next = { ...prev }
+      availableChecked.forEach((id) => {
+        const item = availableMap.get(id)
+        if (!item || next[id]) return
+        next[id] = { item, deadline: "", observations: "" }
+      })
+      return next
+    })
+    setAvailableChecked(new Set())
+  }
+
+  const handleAddAllAvailable = () => {
+    if (availableItems.length === 0) return
+    setSelectedItems((prev) => {
+      const next = { ...prev }
+      availableItems.forEach((item) => {
+        if (!next[item.id]) {
+          next[item.id] = { item, deadline: "", observations: "" }
+        }
+      })
+      return next
+    })
+    setAvailableChecked(new Set())
+  }
+
+  const handleRemoveSelected = () => {
+    if (selectedChecked.size === 0) return
+    setSelectedItems((prev) => {
+      const next = { ...prev }
+      selectedChecked.forEach((id) => {
+        delete next[id]
+      })
+      return next
+    })
+    setSelectedChecked(new Set())
   }
 
   const handleExportDraft = () => {
@@ -480,7 +524,8 @@ export default function Home() {
           })
           return next
         })
-        setHasInitializedSelection(true)
+        setAvailableChecked(new Set())
+        setSelectedChecked(new Set())
         toast.success("Borrador importado.")
       } catch (error) {
         toast.error("No se pudo importar el borrador.")
@@ -582,8 +627,8 @@ export default function Home() {
             Generador de informes estandarizados
           </h1>
           <p className="max-w-2xl text-base text-zinc-600 md:text-lg">
-            Todo el catalogo esta preseleccionado. Quita los items que no quieras
-            incluir y completa los datos de cabecera para generar el PDF.
+            Selecciona los items que quieres incluir y completa los datos de
+            cabecera para generar el PDF.
           </p>
           {!hasSupabaseEnv && (
             <p className="max-w-2xl text-sm text-zinc-500">
@@ -644,6 +689,34 @@ export default function Home() {
                   onChange={setAvailableInstructionFilters}
                   onClear={() => setAvailableInstructionFilters([])}
                 />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={handleAddSelected}
+                    disabled={availableChecked.size === 0}
+                  >
+                    Añadir seleccionados
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddAllAvailable}
+                    disabled={availableItems.length === 0}
+                  >
+                    Añadir todos
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleRestoreAll}
+                    disabled={selectedRows.length === 0}
+                  >
+                    Restaurar todo
+                  </Button>
+                  <Badge variant="outline">
+                    {availableChecked.size} seleccionados
+                  </Badge>
+                </div>
                 {filteredAvailableItems.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-500">
                     {availableItems.length === 0
@@ -666,7 +739,8 @@ export default function Home() {
                         </AccordionTrigger>
                         <AccordionContent className="px-3 pb-3">
                           <div className="rounded-lg border border-zinc-200/80">
-                            <div className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
+                            <div className="grid grid-cols-[auto_1.3fr_1fr_1.4fr_0.7fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
+                              <span className="sr-only">Seleccion</span>
                               <span>Instruccion</span>
                               <span>Linea de trabajo</span>
                               <span>Objetivo de evaluacion</span>
@@ -676,8 +750,24 @@ export default function Home() {
                             {items.map((item) => (
                               <div
                                 key={item.id}
-                                className="grid grid-cols-[1.3fr_1fr_1.4fr_0.7fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
+                                className="grid grid-cols-[auto_1.3fr_1fr_1.4fr_0.7fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
                               >
+                                <Checkbox
+                                  checked={availableChecked.has(item.id)}
+                                  onCheckedChange={(checked) => {
+                                    const isChecked = checked === true
+                                    setAvailableChecked((prev) => {
+                                      const next = new Set(prev)
+                                      if (isChecked) {
+                                        next.add(item.id)
+                                      } else {
+                                        next.delete(item.id)
+                                      }
+                                      return next
+                                    })
+                                  }}
+                                  aria-label={`Seleccionar ${item.item_objective ?? "item"}`}
+                                />
                                 <div>
                                   <div className="font-medium text-zinc-900">
                                     {item.instruction}
@@ -731,8 +821,13 @@ export default function Home() {
                   onClear={() => setSelectedInstructionFilters([])}
                 />
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="outline" onClick={handleRestoreAll}>
-                    Restaurar todo
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRemoveSelected}
+                    disabled={selectedChecked.size === 0}
+                  >
+                    Quitar seleccionados
                   </Button>
                   <Button type="button" variant="ghost" onClick={handleClearSelection}>
                     Quitar todos
@@ -761,7 +856,8 @@ export default function Home() {
                         </AccordionTrigger>
                         <AccordionContent className="px-3 pb-3">
                           <div className="rounded-lg border border-zinc-200/80">
-                            <div className="grid grid-cols-[1.6fr_1.1fr_1.4fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
+                            <div className="grid grid-cols-[auto_1.6fr_1.1fr_1.4fr_auto] gap-3 border-b border-zinc-200/80 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-500">
+                              <span className="sr-only">Seleccion</span>
                               <span>Item</span>
                               <span>Plazo</span>
                               <span>Observaciones</span>
@@ -770,8 +866,24 @@ export default function Home() {
                             {rows.map(({ item, deadline, observations }) => (
                               <div
                                 key={item.id}
-                                className="grid grid-cols-[1.6fr_1.1fr_1.4fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
+                                className="grid grid-cols-[auto_1.6fr_1.1fr_1.4fr_auto] items-center gap-3 border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0"
                               >
+                                <Checkbox
+                                  checked={selectedChecked.has(item.id)}
+                                  onCheckedChange={(checked) => {
+                                    const isChecked = checked === true
+                                    setSelectedChecked((prev) => {
+                                      const next = new Set(prev)
+                                      if (isChecked) {
+                                        next.add(item.id)
+                                      } else {
+                                        next.delete(item.id)
+                                      }
+                                      return next
+                                    })
+                                  }}
+                                  aria-label={`Seleccionar ${item.item_objective ?? "item"}`}
+                                />
                                 <div>
                                   <div className="font-medium text-zinc-900">
                                     {item.item_objective ?? "Sin objetivo"}
