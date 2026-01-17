@@ -91,7 +91,19 @@ const pdfStyles = StyleSheet.create({
     marginBottom: 6,
   },
   row: {
+    flexDirection: "row",
     marginBottom: 8,
+  },
+  rowItem: {
+    width: "45%",
+    paddingRight: 8,
+  },
+  rowDeadline: {
+    width: "25%",
+    paddingRight: 8,
+  },
+  rowObservations: {
+    width: "30%",
   },
   rowTitle: {
     fontSize: 11,
@@ -540,7 +552,7 @@ export default function Home() {
   ) => {
     return (
       <Document>
-        <Page size="A4" style={pdfStyles.page}>
+        <Page size="A4" orientation="landscape" style={pdfStyles.page}>
           <View style={pdfStyles.header}>
             <Text style={pdfStyles.title}>Informe de objetivos</Text>
             <Text style={pdfStyles.meta}>Entidad: {metadata.entity}</Text>
@@ -554,13 +566,17 @@ export default function Home() {
               <Text style={pdfStyles.instruction}>{instruction}</Text>
               {rows.map(({ item, deadline, observations }) => (
                 <View key={item.id} style={pdfStyles.row}>
-                  <Text style={pdfStyles.rowTitle}>
-                    {item.item_objective ?? "Sin objetivo"}
-                  </Text>
-                  <View style={pdfStyles.rowDetails}>
+                  <View style={pdfStyles.rowItem}>
+                    <Text style={pdfStyles.rowTitle}>
+                      {item.item_objective ?? "Sin objetivo"}
+                    </Text>
+                  </View>
+                  <View style={pdfStyles.rowDeadline}>
                     <Text style={pdfStyles.rowMeta}>Plazo: {deadline}</Text>
+                  </View>
+                  <View style={pdfStyles.rowObservations}>
                     <Text style={pdfStyles.rowMeta}>
-                      Observaciones: {observations || "-"}
+                      Observaciones: {observations || ""}
                     </Text>
                   </View>
                 </View>
