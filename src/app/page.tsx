@@ -614,7 +614,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f8f4ef_0%,_#f1f0ed_40%,_#e7e4df_100%)] text-zinc-900">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-12">
         <header className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <Badge className="bg-zinc-900 text-zinc-50">Publico</Badge>
