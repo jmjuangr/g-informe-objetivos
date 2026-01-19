@@ -202,7 +202,6 @@ type MultiSelectFilterProps = {
   options: string[]
   value: string[]
   onChange: (next: string[]) => void
-  onClear: () => void
   placeholder: string
   disabled?: boolean
 }
@@ -212,7 +211,6 @@ const MultiSelectFilter = ({
   options,
   value,
   onChange,
-  onClear,
   placeholder,
   disabled = false,
 }: MultiSelectFilterProps) => {
@@ -246,18 +244,7 @@ const MultiSelectFilter = ({
 
   return (
     <div ref={containerRef} className="relative z-20 space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium text-zinc-600">{title}</p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onClear}
-          disabled={selectedCount === 0 || disabled}
-        >
-          Eliminar filtros
-        </Button>
-      </div>
+      <p className="text-sm font-medium text-zinc-600">{title}</p>
       <div className="flex items-center gap-2">
         <div className="relative">
           <button
@@ -821,23 +808,46 @@ export default function Home() {
                   </div>
                 )}
                 <div className="grid gap-4 md:grid-cols-2">
-                  <MultiSelectFilter
-                    title="Filtrar items disponibles por instruccion"
-                    options={instructionOptions}
-                    value={availableInstructionFilters}
-                    onChange={setAvailableInstructionFilters}
-                    onClear={() => setAvailableInstructionFilters([])}
-                    placeholder="Todas las instrucciones"
-                  />
-                  <MultiSelectFilter
-                    title="Filtrar items disponibles por linea de trabajo"
-                    options={availableWorkLineOptions}
-                    value={availableWorkLineFilters}
-                    onChange={setAvailableWorkLineFilters}
-                    onClear={() => setAvailableWorkLineFilters([])}
-                    placeholder="Todas las lineas"
-                    disabled={availableInstructionFilters.length === 0}
-                  />
+                  <div className="flex flex-wrap items-end gap-2">
+                    <MultiSelectFilter
+                      title="Filtrar items disponibles por instruccion"
+                      options={instructionOptions}
+                      value={availableInstructionFilters}
+                      onChange={setAvailableInstructionFilters}
+                      placeholder="Todas las instrucciones"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAvailableInstructionFilters([])}
+                      disabled={availableInstructionFilters.length === 0}
+                    >
+                      Eliminar filtros
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <MultiSelectFilter
+                      title="Filtrar items disponibles por linea de trabajo"
+                      options={availableWorkLineOptions}
+                      value={availableWorkLineFilters}
+                      onChange={setAvailableWorkLineFilters}
+                      placeholder="Todas las lineas"
+                      disabled={availableInstructionFilters.length === 0}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAvailableWorkLineFilters([])}
+                      disabled={
+                        availableWorkLineFilters.length === 0 ||
+                        availableInstructionFilters.length === 0
+                      }
+                    >
+                      Eliminar filtros
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
@@ -990,23 +1000,46 @@ export default function Home() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <MultiSelectFilter
-                    title="Filtrar items del informe por instruccion"
-                    options={instructionOptions}
-                    value={selectedInstructionFilters}
-                    onChange={setSelectedInstructionFilters}
-                    onClear={() => setSelectedInstructionFilters([])}
-                    placeholder="Todas las instrucciones"
-                  />
-                  <MultiSelectFilter
-                    title="Filtrar items del informe por linea de trabajo"
-                    options={selectedWorkLineOptions}
-                    value={selectedWorkLineFilters}
-                    onChange={setSelectedWorkLineFilters}
-                    onClear={() => setSelectedWorkLineFilters([])}
-                    placeholder="Todas las lineas"
-                    disabled={selectedInstructionFilters.length === 0}
-                  />
+                  <div className="flex flex-wrap items-end gap-2">
+                    <MultiSelectFilter
+                      title="Filtrar items del informe por instruccion"
+                      options={instructionOptions}
+                      value={selectedInstructionFilters}
+                      onChange={setSelectedInstructionFilters}
+                      placeholder="Todas las instrucciones"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedInstructionFilters([])}
+                      disabled={selectedInstructionFilters.length === 0}
+                    >
+                      Eliminar filtros
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <MultiSelectFilter
+                      title="Filtrar items del informe por linea de trabajo"
+                      options={selectedWorkLineOptions}
+                      value={selectedWorkLineFilters}
+                      onChange={setSelectedWorkLineFilters}
+                      placeholder="Todas las lineas"
+                      disabled={selectedInstructionFilters.length === 0}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedWorkLineFilters([])}
+                      disabled={
+                        selectedWorkLineFilters.length === 0 ||
+                        selectedInstructionFilters.length === 0
+                      }
+                    >
+                      Eliminar filtros
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
